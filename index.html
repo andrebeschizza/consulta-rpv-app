@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#0d47a1" />
+  <title>AB SEM CALOTE</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" href="icon-192.png" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<header>
+  <h1>AB SEM CALOTE</h1>
+  <button id="btnNotif" class="ghost" hidden>Ativar push</button>
+</header>
+
+<nav class="tabs">
+  <button data-view="alertas" class="tab active">Alertas</button>
+  <button data-view="processos" class="tab">Processos</button>
+  <button data-view="novo" class="tab">Novo</button>
+</nav>
+
+<main>
+  <section id="loginView" hidden>
+    <h2>Entrar</h2>
+    <form id="loginForm">
+      <label>E-mail<input type="email" name="email" required autocomplete="email" /></label>
+      <label>Senha<input type="password" name="senha" required autocomplete="current-password" /></label>
+      <button type="submit">Entrar</button>
+      <p id="loginErr" class="error" hidden></p>
+    </form>
+  </section>
+
+  <section id="alertasView">
+    <h2>Alertas <span id="alertasCount" class="badge"></span></h2>
+    <div id="alertasList" class="list">
+      <p class="loading">Carregando...</p>
+    </div>
+  </section>
+
+  <section id="processosView" hidden>
+    <h2>Processos ativos</h2>
+    <input id="filtroProcessos" type="search" placeholder="Filtrar por CPF (4 ultimos) ou nome" />
+    <div id="processosList" class="list">
+      <p class="loading">Carregando...</p>
+    </div>
+  </section>
+
+  <section id="novoView" hidden>
+    <h2>Cadastrar processo</h2>
+    <form id="novoForm">
+      <label>Numero do processo<input name="numero_processo" required /></label>
+      <label>Numero RPV<input name="numero_rpv" /></label>
+      <label>CPF do cliente<input name="cpf" required inputmode="numeric" pattern="\d{11}" maxlength="11" /></label>
+      <label>Nome<input name="nome_cliente" required /></label>
+      <label>TRF
+        <select name="trf" required>
+          <option value="1">TRF1 (BA/GO/DF/etc)</option>
+          <option value="5" selected>TRF5 (NE)</option>
+          <option value="3">TRF3 (SP/MS)</option>
+          <option value="4">TRF4 (Sul)</option>
+        </select>
+      </label>
+      <label>Tipo
+        <select name="tipo" required>
+          <option value="RPV">RPV</option>
+          <option value="PRECATORIO">Precatorio</option>
+        </select>
+      </label>
+      <label>Valor estimado (R$)<input name="valor_estimado" type="number" step="0.01" required /></label>
+      <label>Advogado responsavel<input name="advogado_responsavel" required /></label>
+      <button type="submit">Cadastrar</button>
+      <p id="novoMsg" hidden></p>
+    </form>
+  </section>
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>

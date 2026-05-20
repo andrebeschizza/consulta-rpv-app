@@ -1,0 +1,85 @@
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f5f7fa; color: #222; }
+
+header {
+  background: #0d47a1; color: white; padding: 14px 16px;
+  display: flex; align-items: center; justify-content: space-between;
+  position: sticky; top: 0; z-index: 10;
+}
+header h1 { margin: 0; font-size: 18px; font-weight: 600; }
+header .ghost {
+  background: transparent; color: white; border: 1px solid rgba(255,255,255,0.4);
+  padding: 6px 12px; border-radius: 6px; font-size: 13px;
+}
+
+nav.tabs {
+  display: flex; background: white; border-bottom: 1px solid #e0e4ea;
+  position: sticky; top: 50px; z-index: 9;
+}
+nav.tabs .tab {
+  flex: 1; padding: 14px 8px; background: transparent; border: none;
+  font-size: 14px; color: #666; cursor: pointer; border-bottom: 3px solid transparent;
+}
+nav.tabs .tab.active { color: #0d47a1; border-bottom-color: #0d47a1; font-weight: 600; }
+
+main { padding: 16px; max-width: 600px; margin: 0 auto; }
+h2 { font-size: 16px; margin: 8px 0 16px; color: #444; display: flex; align-items: center; gap: 8px; }
+
+.badge {
+  background: #d32f2f; color: white; font-size: 11px; padding: 2px 8px;
+  border-radius: 10px; font-weight: 600;
+}
+.badge:empty { display: none; }
+
+form {
+  display: flex; flex-direction: column; gap: 12px;
+  background: white; padding: 16px; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+form label { display: flex; flex-direction: column; font-size: 13px; color: #555; gap: 4px; }
+form input, form select {
+  padding: 10px 12px; border: 1px solid #d0d6dd; border-radius: 6px; font-size: 16px;
+  background: white;
+}
+form button {
+  padding: 12px; background: #0d47a1; color: white; border: none; border-radius: 6px;
+  font-size: 15px; font-weight: 600; margin-top: 8px;
+}
+form button:disabled { opacity: 0.5; }
+
+.error { color: #d32f2f; font-size: 13px; margin: 0; }
+.success { color: #2e7d32; font-size: 13px; margin: 0; }
+
+input[type="search"] {
+  width: 100%; padding: 10px 12px; border: 1px solid #d0d6dd; border-radius: 6px;
+  font-size: 14px; margin-bottom: 12px; background: white;
+}
+
+.list { display: flex; flex-direction: column; gap: 8px; }
+.loading { color: #999; text-align: center; padding: 24px; }
+
+.card {
+  background: white; padding: 12px 14px; border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06); border-left: 4px solid #ccc;
+}
+.card.urgente { border-left-color: #d32f2f; }
+.card.iminente { border-left-color: #f57c00; }
+.card.depositado { border-left-color: #d32f2f; background: #fff5f5; }
+.card.sacado { opacity: 0.6; }
+.card .cliente { font-weight: 600; color: #222; font-size: 15px; }
+.card .meta { font-size: 12px; color: #777; margin-top: 4px; }
+.card .status { display: inline-block; padding: 2px 8px; background: #e3f2fd; color: #0d47a1; border-radius: 4px; font-size: 11px; font-weight: 600; margin-top: 6px; text-transform: uppercase; }
+.card .status.encaminhado_banco { background: #fff3e0; color: #e65100; }
+.card .status.depositado { background: #ffebee; color: #c62828; }
+.card .status.sacado { background: #e8f5e9; color: #2e7d32; }
+
+@media (prefers-color-scheme: dark) {
+  body { background: #1a1d23; color: #eee; }
+  nav.tabs { background: #242830; border-color: #333; }
+  nav.tabs .tab { color: #aaa; }
+  nav.tabs .tab.active { color: #64b5f6; border-bottom-color: #64b5f6; }
+  form, .card { background: #242830; box-shadow: none; }
+  form input, form select, input[type="search"] { background: #1a1d23; color: #eee; border-color: #444; }
+  h2 { color: #ddd; }
+  .card .cliente { color: #fff; }
+  .card .meta { color: #aaa; }
+}
