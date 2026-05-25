@@ -2,81 +2,173 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#0d47a1" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="AB Calote" />
   <title>AB SEM CALOTE</title>
+  <base href="https://n8n.aposentabrasil.net.br/webhook/abscalote-app/" />
   <link rel="manifest" href="manifest.json" />
-  <link rel="icon" href="icon-192.png" />
-  <link rel="apple-touch-icon" href="icon-192.png" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
 
+<!-- ============== HEADER ============== -->
 <header>
-  <h1>AB SEM CALOTE</h1>
-  <button id="btnNotif" class="ghost" hidden>Ativar push</button>
+  <div class="header-content">
+    <div class="brand">
+      <div class="logo">$</div>
+      <div>
+        <h1>AB SEM CALOTE</h1>
+        <p class="tagline">Monitor de RPV e Precatorio</p>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button id="btnRefresh" class="icon-btn" title="Atualizar" hidden>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg>
+      </button>
+      <button id="btnNotif" class="icon-btn" title="Ativar notificacoes" hidden>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+      </button>
+      <button id="btnLogout" class="icon-btn" title="Sair" hidden>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
+      </button>
+    </div>
+  </div>
 </header>
 
-<nav class="tabs">
-  <button data-view="alertas" class="tab active">Alertas</button>
-  <button data-view="processos" class="tab">Processos</button>
-  <button data-view="novo" class="tab">Novo</button>
+<!-- ============== TABS ============== -->
+<nav class="tabs" id="tabs" hidden>
+  <button data-view="alertas" class="tab active">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/></svg>
+    <span>Alertas</span>
+    <span id="alertasCount" class="badge"></span>
+  </button>
+  <button data-view="processos" class="tab">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2z"/></svg>
+    <span>Processos</span>
+  </button>
+  <button data-view="novo" class="tab">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><path d="M12 8v8"/><path d="M8 12h8"/></svg>
+    <span>Novo</span>
+  </button>
 </nav>
 
 <main>
-  <section id="loginView" hidden>
-    <h2>Entrar</h2>
-    <form id="loginForm">
-      <label>E-mail<input type="email" name="email" required autocomplete="email" /></label>
-      <label>Senha<input type="password" name="senha" required autocomplete="current-password" /></label>
-      <button type="submit">Entrar</button>
-      <p id="loginErr" class="error" hidden></p>
-    </form>
-  </section>
 
-  <section id="alertasView">
-    <h2>Alertas <span id="alertasCount" class="badge"></span></h2>
-    <div id="alertasList" class="list">
-      <p class="loading">Carregando...</p>
+  <!-- ============== LOGIN ============== -->
+  <section id="loginView" class="centered" hidden>
+    <div class="login-card">
+      <h2>Entrar</h2>
+      <p class="muted">Use o e-mail do escritorio cadastrado.</p>
+      <form id="loginForm">
+        <label>
+          <span>E-mail</span>
+          <input type="email" name="email" required autocomplete="email" inputmode="email" placeholder="seu.email@andrebeschizza.com" />
+        </label>
+        <label>
+          <span>Senha</span>
+          <input type="password" name="senha" required autocomplete="current-password" placeholder="Sua senha" />
+        </label>
+        <button type="submit" class="primary">
+          <span class="btn-text">Entrar</span>
+          <span class="spinner" hidden></span>
+        </button>
+        <p id="loginErr" class="error" hidden></p>
+      </form>
+      <details class="help">
+        <summary>Nao consegue entrar?</summary>
+        <p>Acesso restrito a equipe cadastrada. Fale com o Dr. Andre Beschizza para liberar seu e-mail.</p>
+      </details>
     </div>
   </section>
 
+  <!-- ============== ALERTAS ============== -->
+  <section id="alertasView" hidden>
+    <header class="section-header">
+      <h2>Alertas</h2>
+      <p class="muted">Processos com deposito iminente ou ja depositado.</p>
+    </header>
+    <div id="alertasList" class="list"></div>
+  </section>
+
+  <!-- ============== PROCESSOS ============== -->
   <section id="processosView" hidden>
-    <h2>Processos ativos</h2>
-    <input id="filtroProcessos" type="search" placeholder="Filtrar por CPF (4 ultimos) ou nome" />
-    <div id="processosList" class="list">
-      <p class="loading">Carregando...</p>
+    <header class="section-header">
+      <h2>Processos em monitoramento</h2>
+      <p class="muted">Atualizados a cada 72h pelo sistema.</p>
+    </header>
+    <div class="search-bar">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/></svg>
+      <input id="filtroProcessos" type="search" placeholder="Buscar por nome ou 4 ultimos do CPF" />
     </div>
+    <div id="processosList" class="list"></div>
   </section>
 
+  <!-- ============== NOVO ============== -->
   <section id="novoView" hidden>
-    <h2>Cadastrar processo</h2>
-    <form id="novoForm">
-      <label>Numero do processo<input name="numero_processo" required /></label>
-      <label>Numero RPV<input name="numero_rpv" /></label>
-      <label>CPF do cliente<input name="cpf" required inputmode="numeric" pattern="\d{11}" maxlength="11" /></label>
-      <label>Nome<input name="nome_cliente" required /></label>
-      <label>TRF
-        <select name="trf" required>
-          <option value="1">TRF1 (BA/GO/DF/etc)</option>
-          <option value="5" selected>TRF5 (NE)</option>
-          <option value="3">TRF3 (SP/MS)</option>
-          <option value="4">TRF4 (Sul)</option>
-        </select>
+    <header class="section-header">
+      <h2>Cadastrar processo</h2>
+      <p class="muted">CPF e valor sao criptografados antes de salvar.</p>
+    </header>
+    <form id="novoForm" class="card-form">
+      <label>
+        <span>Numero do processo <em>*</em></span>
+        <input name="numero_processo" required placeholder="0000000-00.0000.0.00.0000" />
       </label>
-      <label>Tipo
-        <select name="tipo" required>
-          <option value="RPV">RPV</option>
-          <option value="PRECATORIO">Precatorio</option>
-        </select>
+      <label>
+        <span>Numero do RPV <small>(opcional)</small></span>
+        <input name="numero_rpv" placeholder="Se ja foi expedido" />
       </label>
-      <label>Valor estimado (R$)<input name="valor_estimado" type="number" step="0.01" required /></label>
-      <label>Advogado responsavel<input name="advogado_responsavel" required /></label>
-      <button type="submit">Cadastrar</button>
+      <label>
+        <span>CPF do cliente <em>*</em></span>
+        <input name="cpf" required inputmode="numeric" pattern="\d{11}" maxlength="11" placeholder="11 digitos sem pontos" />
+      </label>
+      <label>
+        <span>Nome do cliente <em>*</em></span>
+        <input name="nome_cliente" required placeholder="Nome completo" />
+      </label>
+      <div class="row">
+        <label>
+          <span>TRF <em>*</em></span>
+          <select name="trf" required>
+            <option value="5">TRF5 - Nordeste</option>
+            <option value="1">TRF1 - BA/centro-oeste/norte</option>
+            <option value="3">TRF3 - SP/MS</option>
+            <option value="4">TRF4 - Sul</option>
+          </select>
+        </label>
+        <label>
+          <span>Tipo <em>*</em></span>
+          <select name="tipo" required>
+            <option value="RPV">RPV</option>
+            <option value="PRECATORIO">Precatorio</option>
+          </select>
+        </label>
+      </div>
+      <label>
+        <span>Valor estimado (R$) <em>*</em></span>
+        <input name="valor_estimado" type="number" step="0.01" required placeholder="0,00" />
+      </label>
+      <label>
+        <span>Advogado responsavel <em>*</em></span>
+        <input name="advogado_responsavel" required placeholder="Nome do advogado" />
+      </label>
+      <button type="submit" class="primary">
+        <span class="btn-text">Cadastrar processo</span>
+        <span class="spinner" hidden></span>
+      </button>
       <p id="novoMsg" hidden></p>
     </form>
   </section>
+
 </main>
+
+<footer class="app-footer">
+  <span>AB SEM CALOTE - v0.2</span>
+  <span id="connStatus" class="conn-ok">Conectado</span>
+</footer>
 
 <script src="app.js"></script>
 </body>
