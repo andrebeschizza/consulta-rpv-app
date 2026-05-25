@@ -13,7 +13,7 @@ button { font-family: inherit; cursor: pointer; }
 input, select, button, textarea { font-family: inherit; }
 
 /* ============== HEADER ============== */
-header {
+body > header {
   background: linear-gradient(135deg, #0d47a1 0%, #1565c0 60%, #1976d2 100%);
   color: white;
   padding: 16px 20px;
@@ -322,3 +322,5 @@ button.primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
   main { padding: 16px 12px 70px; }
   .section-header h2 { font-size: 19px; }
 }
+
+[hidden] { display: none !important; }
