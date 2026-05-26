@@ -9,18 +9,17 @@
   <meta name="apple-mobile-web-app-title" content="AB Calote" />
   <title>AB SEM CALOTE</title>
   <link rel="manifest" href="manifest.json" />
-  <link rel="stylesheet" href="style.css?v=3" />
+  <link rel="stylesheet" href="style.css?v=4" />
 </head>
 <body>
 
-<!-- ============== HEADER ============== -->
 <header>
   <div class="header-content">
     <div class="brand">
-      <div class="logo">$</div>
+      <div class="logo">AB</div>
       <div>
         <h1>AB SEM CALOTE</h1>
-        <p class="tagline">Monitor de RPV e Precatorio</p>
+        <p class="tagline">Monitor de RPV, Precatorio e Sucumbencia</p>
       </div>
     </div>
     <div class="header-actions">
@@ -37,7 +36,6 @@
   </div>
 </header>
 
-<!-- ============== TABS ============== -->
 <nav class="tabs" id="tabs" hidden>
   <button data-view="alertas" class="tab active">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/></svg>
@@ -52,11 +50,14 @@
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><path d="M12 8v8"/><path d="M8 12h8"/></svg>
     <span>Novo</span>
   </button>
+  <button data-view="relatorio" class="tab">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 3v18h18"/><path d="M7 14l4-4 4 4 6-6"/></svg>
+    <span>Relatorio</span>
+  </button>
 </nav>
 
 <main>
 
-  <!-- ============== LOGIN ============== -->
   <section id="loginView" class="centered" hidden>
     <div class="login-card">
       <h2>Entrar</h2>
@@ -83,7 +84,6 @@
     </div>
   </section>
 
-  <!-- ============== ALERTAS ============== -->
   <section id="alertasView" hidden>
     <header class="section-header">
       <h2>Alertas</h2>
@@ -92,10 +92,9 @@
     <div id="alertasList" class="list"></div>
   </section>
 
-  <!-- ============== PROCESSOS ============== -->
   <section id="processosView" hidden>
     <header class="section-header">
-      <h2>Processos em monitoramento</h2>
+      <h2>Processos cadastrados</h2>
       <p class="muted">Atualizados a cada 72h pelo sistema.</p>
     </header>
     <div class="search-bar">
@@ -105,55 +104,68 @@
     <div id="processosList" class="list"></div>
   </section>
 
-  <!-- ============== NOVO ============== -->
   <section id="novoView" hidden>
     <header class="section-header">
       <h2>Cadastrar processo</h2>
       <p class="muted">CPF e valor sao criptografados antes de salvar.</p>
     </header>
     <form id="novoForm" class="card-form">
-      <label>
-        <span>Numero do processo <em>*</em></span>
-        <input name="numero_processo" required placeholder="0000000-00.0000.0.00.0000" />
-      </label>
-      <label>
-        <span>Numero do RPV <small>(opcional)</small></span>
-        <input name="numero_rpv" placeholder="Se ja foi expedido" />
-      </label>
-      <label>
-        <span>CPF do cliente <em>*</em></span>
-        <input name="cpf" required inputmode="numeric" pattern="\d{11}" maxlength="11" placeholder="11 digitos sem pontos" />
-      </label>
-      <label>
-        <span>Nome do cliente <em>*</em></span>
-        <input name="nome_cliente" required placeholder="Nome completo" />
-      </label>
       <div class="row">
+        <label>
+          <span>Tipo <em>*</em></span>
+          <select name="tipo" required id="selTipo">
+            <option value="RPV">RPV</option>
+            <option value="PRECATORIO">Precatorio</option>
+            <option value="SUCUMBENCIA">Sucumbencia</option>
+          </select>
+        </label>
         <label>
           <span>TRF <em>*</em></span>
           <select name="trf" required>
             <option value="5">TRF5 - Nordeste</option>
-            <option value="1">TRF1 - BA/centro-oeste/norte</option>
+            <option value="1">TRF1 - BA/GO/DF/etc</option>
             <option value="3">TRF3 - SP/MS</option>
             <option value="4">TRF4 - Sul</option>
           </select>
         </label>
-        <label>
-          <span>Tipo <em>*</em></span>
-          <select name="tipo" required>
-            <option value="RPV">RPV</option>
-            <option value="PRECATORIO">Precatorio</option>
-          </select>
-        </label>
       </div>
+
       <label>
-        <span>Valor estimado (R$) <em>*</em></span>
-        <input name="valor_estimado" type="number" step="0.01" required placeholder="0,00" />
+        <span>Numero do processo <em>*</em></span>
+        <input name="numero_processo" required placeholder="0000000-00.0000.0.00.0000" />
       </label>
+
+      <label id="lblNumeroRPV">
+        <span>Numero do RPV/Precatorio <small>(se ja expedido)</small></span>
+        <input name="numero_rpv" placeholder="Ex: 2026.0001234" />
+      </label>
+
+      <label id="lblCPF">
+        <span>CPF do cliente <em>*</em></span>
+        <input name="cpf" required inputmode="numeric" maxlength="14" placeholder="000.000.000-00" id="inpCPF" />
+      </label>
+
+      <label id="lblNome">
+        <span>Nome do cliente <em>*</em></span>
+        <input name="nome_cliente" required placeholder="Nome completo" />
+      </label>
+
+      <label>
+        <span>Valor estimado <em>*</em></span>
+        <input name="valor_estimado" required inputmode="decimal" placeholder="R$ 0,00" id="inpValor" />
+      </label>
+
+      <label>
+        <span>Percentual de honorarios (%) <em>*</em></span>
+        <input name="percentual_honorarios" type="number" step="0.5" min="0" max="100" required value="30" id="inpPct" />
+        <small class="hint" id="hintHonorarios">Honorarios estimados: <strong>R$ 0,00</strong></small>
+      </label>
+
       <label>
         <span>Advogado responsavel <em>*</em></span>
-        <input name="advogado_responsavel" required placeholder="Nome do advogado" />
+        <input name="advogado_responsavel" required placeholder="Nome do advogado" id="inpAdv" />
       </label>
+
       <button type="submit" class="primary">
         <span class="btn-text">Cadastrar processo</span>
         <span class="spinner" hidden></span>
@@ -162,13 +174,68 @@
     </form>
   </section>
 
+  <section id="relatorioView" hidden>
+    <header class="section-header">
+      <h2>Relatorio de honorarios</h2>
+      <p class="muted">Filtre por periodo e exporte para planilha.</p>
+    </header>
+    <div class="card-form">
+      <div class="row">
+        <label>
+          <span>De</span>
+          <input type="date" id="repFrom" />
+        </label>
+        <label>
+          <span>Ate</span>
+          <input type="date" id="repTo" />
+        </label>
+      </div>
+      <label>
+        <span>Status</span>
+        <select id="repStatus">
+          <option value="">Todos</option>
+          <option value="cadastrado">Cadastrado</option>
+          <option value="em_pagamento">Em pagamento</option>
+          <option value="encaminhado_banco">Encaminhado banco</option>
+          <option value="depositado">Depositado</option>
+          <option value="sacado">Sacado</option>
+        </select>
+      </label>
+      <button id="btnGerarRelatorio" type="button" class="primary">
+        <span class="btn-text">Gerar relatorio</span>
+        <span class="spinner" hidden></span>
+      </button>
+    </div>
+
+    <div id="relatorioResultado" hidden>
+      <div class="report-summary">
+        <div class="summary-card">
+          <span class="summary-label">Honorarios principais</span>
+          <span class="summary-value" id="sumHonorarios">R$ 0,00</span>
+          <span class="summary-detail" id="sumHonorariosDetail">0 processos</span>
+        </div>
+        <div class="summary-card secondary">
+          <span class="summary-label">Sucumbencias</span>
+          <span class="summary-value" id="sumSucumbencias">R$ 0,00</span>
+          <span class="summary-detail" id="sumSucumbenciasDetail">0 processos</span>
+        </div>
+        <div class="summary-card total">
+          <span class="summary-label">Total</span>
+          <span class="summary-value" id="sumTotal">R$ 0,00</span>
+          <span class="summary-detail" id="sumTotalDetail">0 processos</span>
+        </div>
+      </div>
+      <button id="btnExportarCSV" class="primary secondary-btn">Baixar planilha (CSV)</button>
+    </div>
+  </section>
+
 </main>
 
 <footer class="app-footer">
-  <span>AB SEM CALOTE - v0.2</span>
+  <span>AB SEM CALOTE - v0.3</span>
   <span id="connStatus" class="conn-ok">Conectado</span>
 </footer>
 
-<script src="app.js?v=3"></script>
+<script src="app.js?v=4"></script>
 </body>
 </html>
