@@ -1,4 +1,4 @@
-// AB SEM CALOTE - app PWA v0.4
+// AB SEM CALOTE - app PWA v0.5
 const API_BASE = 'https://n8n.aposentabrasil.net.br/webhook/abscalote';
 const VAPID_PUBLIC = 'BN_LJCRZzyqlBGVeaaiLenhuxLnjwX6t-eU4GEi0wkXJwEfq4OSYiX47aoqjizkbmFKH3XZmXZr8EL-gTW4zEgM';
 const TOKEN_KEY = 'abscalote_token';
@@ -344,7 +344,7 @@ $('#novoForm').addEventListener('submit', async (e) => {
     await api('POST', '/processos', payload);
     showSuccess(msg, `Cadastrado. Honorarios estimados: ${fmtBRL(valor * payload.percentual_honorarios / 100)}.`);
     e.target.reset();
-    $('#inpPct').value = '30';
+    $('#inpPct').value = '35';
     $('#hintHonorarios').innerHTML = 'Honorarios estimados: <strong>R$ 0,00</strong>';
     window._procs = null;
     setTimeout(() => trocarView('processos'), 1500);
