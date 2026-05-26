@@ -1,4 +1,4 @@
-// AB SEM CALOTE - app PWA v0.3
+// AB SEM CALOTE - app PWA v0.4
 const API_BASE = 'https://n8n.aposentabrasil.net.br/webhook/abscalote';
 const VAPID_PUBLIC = 'BN_LJCRZzyqlBGVeaaiLenhuxLnjwX6t-eU4GEi0wkXJwEfq4OSYiX47aoqjizkbmFKH3XZmXZr8EL-gTW4zEgM';
 const TOKEN_KEY = 'abscalote_token';
@@ -262,16 +262,18 @@ function renderProcessos(procs) {
   const list = $('#processosList');
   if (!procs.length) { list.innerHTML = '<div class="state"><p>Nenhum processo encontrado.</p></div>'; return; }
   list.innerHTML = procs.map(p => {
-    const valor = unmaskValor(p.valor_estimado_display || p.valor_estimado || 0);
+    const valor = parseFloat(p.valor_estimado || 0) || 0;
     const pct = parseFloat(p.percentual_honorarios || 0);
-    const hon = valor * (pct / 100);
+    const hon = p.tipo === 'SUCUMBENCIA' ? valor : valor * (pct / 100);
     const tipoLabel = { RPV: 'RPV', PRECATORIO: 'Precatorio', SUCUMBENCIA: 'Sucumbencia' }[p.tipo] || p.tipo;
+    const cpfDisplay = p.cpf || ('***' + (p.cpf_ultimos4 || '----'));
     return `<div class="card">
-      <div class="cliente">${p.nome_cliente || '-'} <small>CPF ***${p.cpf_ultimos4 || '----'}</small></div>
-      <div class="meta"><strong>${p.numero_processo || '-'}</strong></div>
-      <div class="meta">TRF${p.trf} · ${tipoLabel}${pct ? ' · ' + pct + '% hon.' : ''}</div>
+      <div class="cliente">${p.nome_cliente || '-'}</div>
+      <div class="meta">CPF: <strong>${cpfDisplay}</strong></div>
+      <div class="meta">Processo: <strong>${p.numero_processo || '-'}</strong>${p.numero_rpv ? ' · RPV: ' + p.numero_rpv : ''}</div>
+      <div class="meta">TRF${p.trf} · ${tipoLabel}${p.tipo !== 'SUCUMBENCIA' && pct ? ' · ' + pct + '% hon.' : ''}</div>
       <div class="meta">Advogado: ${p.advogado_responsavel || '-'}</div>
-      ${valor > 0 ? `<div class="meta">Valor: <strong>${fmtBRL(valor)}</strong>${pct > 0 ? ` · Honorarios: <strong>${fmtBRL(hon)}</strong>` : ''}</div>` : ''}
+      ${valor > 0 ? `<div class="meta">Valor: <strong>${fmtBRL(valor)}</strong> · ${p.tipo === 'SUCUMBENCIA' ? 'Sucumbencia' : 'Honorarios'}: <strong>${fmtBRL(hon)}</strong></div>` : ''}
       <span class="status ${p.status_atual || ''}">${(p.status_atual || 'cadastrado').replace(/_/g, ' ')}</span>
     </div>`;
   }).join('');
@@ -379,7 +381,7 @@ $('#btnGerarRelatorio').addEventListener('click', async () => {
     window._relatorioFiltered = filtered;
     let sumHon = 0, nHon = 0, sumSuc = 0, nSuc = 0;
     filtered.forEach(p => {
-      const v = unmaskValor(p.valor_estimado_display || p.valor_estimado || 0);
+      const v = parseFloat(p.valor_estimado || 0) || 0;
       const pct = parseFloat(p.percentual_honorarios || 0);
       if (p.tipo === 'SUCUMBENCIA') { sumSuc += v; nSuc++; }
       else { sumHon += v * (pct / 100); nHon++; }
@@ -400,9 +402,9 @@ $('#btnGerarRelatorio').addEventListener('click', async () => {
 
 $('#btnExportarCSV').addEventListener('click', () => {
   const procs = window._relatorioFiltered || [];
-  const headers = ['Data cadastro', 'Tipo', 'TRF', 'Processo', 'RPV', 'Cliente', 'CPF (4 ultimos)', 'Advogado', 'Valor estimado', 'Percentual honorarios', 'Honorarios estimados', 'Status'];
+  const headers = ['Data cadastro', 'Tipo', 'TRF', 'Processo', 'RPV', 'Cliente', 'CPF', 'Advogado', 'Valor estimado', 'Percentual honorarios', 'Honorarios estimados', 'Status'];
   const rows = procs.map(p => {
-    const v = unmaskValor(p.valor_estimado_display || p.valor_estimado || 0);
+    const v = parseFloat(p.valor_estimado || 0) || 0;
     const pct = parseFloat(p.percentual_honorarios || 0);
     const hon = p.tipo === 'SUCUMBENCIA' ? v : v * (pct / 100);
     return [
@@ -412,7 +414,7 @@ $('#btnExportarCSV').addEventListener('click', () => {
       p.numero_processo || '',
       p.numero_rpv || '',
       p.nome_cliente || '',
-      p.cpf_ultimos4 || '',
+      p.cpf || ('***' + (p.cpf_ultimos4 || '')),
       p.advogado_responsavel || '',
       v.toFixed(2).replace('.', ','),
       p.tipo === 'SUCUMBENCIA' ? '-' : (pct + '%'),
