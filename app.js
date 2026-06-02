@@ -1,4 +1,4 @@
-// AB SEM CALOTE - app PWA v0.5
+// AB SEM CALOTE - app PWA v0.6
 const API_BASE = 'https://n8n.aposentabrasil.net.br/webhook/abscalote';
 const VAPID_PUBLIC = 'BN_LJCRZzyqlBGVeaaiLenhuxLnjwX6t-eU4GEi0wkXJwEfq4OSYiX47aoqjizkbmFKH3XZmXZr8EL-gTW4zEgM';
 const TOKEN_KEY = 'abscalote_token';
@@ -258,6 +258,10 @@ async function carregarProcessos() {
   }
 }
 
+function escapeHtml(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
 function renderProcessos(procs) {
   const list = $('#processosList');
   if (!procs.length) { list.innerHTML = '<div class="state"><p>Nenhum processo encontrado.</p></div>'; return; }
@@ -267,17 +271,75 @@ function renderProcessos(procs) {
     const hon = p.tipo === 'SUCUMBENCIA' ? valor : valor * (pct / 100);
     const tipoLabel = { RPV: 'RPV', PRECATORIO: 'Precatorio', SUCUMBENCIA: 'Sucumbencia' }[p.tipo] || p.tipo;
     const cpfDisplay = p.cpf || ('***' + (p.cpf_ultimos4 || '----'));
-    return `<div class="card">
-      <div class="cliente">${p.nome_cliente || '-'}</div>
-      <div class="meta">CPF: <strong>${cpfDisplay}</strong></div>
-      <div class="meta">Processo: <strong>${p.numero_processo || '-'}</strong>${p.numero_rpv ? ' · RPV: ' + p.numero_rpv : ''}</div>
-      <div class="meta">TRF${p.trf} · ${tipoLabel}${p.tipo !== 'SUCUMBENCIA' && pct ? ' · ' + pct + '% hon.' : ''}</div>
-      <div class="meta">Advogado: ${p.advogado_responsavel || '-'}</div>
+    return `<div class="card clickable" data-id="${escapeHtml(p.id)}">
+      <div class="cliente">${escapeHtml(p.nome_cliente || '-')}</div>
+      <div class="meta">CPF: <strong>${escapeHtml(cpfDisplay)}</strong></div>
+      <div class="meta">Processo: <strong>${escapeHtml(p.numero_processo || '-')}</strong>${p.numero_rpv ? ' · RPV: ' + escapeHtml(p.numero_rpv) : ''}</div>
+      <div class="meta">TRF${escapeHtml(p.trf)} · ${tipoLabel}${p.tipo !== 'SUCUMBENCIA' && pct ? ' · ' + pct + '% hon.' : ''}</div>
+      <div class="meta">Advogado: ${escapeHtml(p.advogado_responsavel || '-')}</div>
       ${valor > 0 ? `<div class="meta">Valor: <strong>${fmtBRL(valor)}</strong> · ${p.tipo === 'SUCUMBENCIA' ? 'Sucumbencia' : 'Honorarios'}: <strong>${fmtBRL(hon)}</strong></div>` : ''}
       <span class="status ${p.status_atual || ''}">${(p.status_atual || 'cadastrado').replace(/_/g, ' ')}</span>
+      <span class="card-chevron" aria-hidden="true">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg>
+      </span>
     </div>`;
   }).join('');
+  // ativa click pra abrir detalhe
+  list.querySelectorAll('.card[data-id]').forEach(c => {
+    c.addEventListener('click', () => abrirDetalhe(c.dataset.id));
+  });
 }
+
+// ============================================================================
+// Modal de detalhes do processo
+// ============================================================================
+function abrirDetalhe(id) {
+  const p = (window._procs || []).find(x => String(x.id) === String(id));
+  if (!p) { alert('Processo nao encontrado. Atualize a lista.'); return; }
+  const valor = parseFloat(p.valor_estimado || 0) || 0;
+  const pct = parseFloat(p.percentual_honorarios || 0);
+  const hon = p.tipo === 'SUCUMBENCIA' ? valor : valor * (pct / 100);
+  const tipoLabel = { RPV: 'RPV', PRECATORIO: 'Precatorio', SUCUMBENCIA: 'Sucumbencia' }[p.tipo] || p.tipo || '-';
+  const cpfDisplay = p.cpf || ('***' + (p.cpf_ultimos4 || '----'));
+  const statusLabel = (p.status_atual || 'cadastrado').replace(/_/g, ' ');
+  const trfLabel = `TRF${p.trf || '-'}`;
+  const numeroRPV = p.numero_rpv ? escapeHtml(p.numero_rpv) : '<span class="muted-inline">nao informado</span>';
+  const linhas = [
+    ['Cliente', escapeHtml(p.nome_cliente || '-')],
+    ['CPF', escapeHtml(cpfDisplay)],
+    ['Numero do processo', `<code>${escapeHtml(p.numero_processo || '-')}</code>`],
+    ['Numero RPV/Precatorio', numeroRPV],
+    ['Tipo', escapeHtml(tipoLabel)],
+    ['Tribunal', escapeHtml(trfLabel)],
+    ['Valor estimado', `<strong>${fmtBRL(valor)}</strong>`],
+    p.tipo === 'SUCUMBENCIA'
+      ? ['Sucumbencia', `<strong>${fmtBRL(hon)}</strong>`]
+      : ['Honorarios', `<strong>${fmtBRL(hon)}</strong> <span class="muted-inline">(${pct || 0}%)</span>`],
+    ['Advogado responsavel', escapeHtml(p.advogado_responsavel || '-')],
+    ['Status atual', `<span class="status ${p.status_atual || ''}">${escapeHtml(statusLabel)}</span>`],
+    ['Cadastrado em', fmtDate(p.criado_em)],
+    ['Atualizado em', fmtDate(p.atualizado_em)],
+    ['ID interno', `<code class="tiny">${escapeHtml(p.id || '-')}</code>`]
+  ];
+  $('#modalBody').innerHTML = linhas.map(([k, v]) =>
+    `<div class="detalhe-linha"><span class="detalhe-label">${k}</span><span class="detalhe-valor">${v}</span></div>`
+  ).join('');
+  $('#modalOverlay').hidden = false;
+  document.body.style.overflow = 'hidden';
+}
+
+function fecharModal() {
+  $('#modalOverlay').hidden = true;
+  document.body.style.overflow = '';
+}
+
+$('#btnFecharModal').addEventListener('click', fecharModal);
+$('#modalOverlay').addEventListener('click', (e) => {
+  if (e.target.id === 'modalOverlay') fecharModal();
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && !$('#modalOverlay').hidden) fecharModal();
+});
 
 $('#filtroProcessos').addEventListener('input', (e) => {
   const q = e.target.value.toLowerCase().trim();

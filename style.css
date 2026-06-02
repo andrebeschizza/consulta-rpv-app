@@ -206,8 +206,18 @@ button.primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
   box-shadow: 0 2px 8px rgba(0,0,0,0.04);
   border-left: 4px solid #cbd5e1;
   transition: transform 0.1s, box-shadow 0.15s;
+  position: relative;
 }
 .card:active { transform: scale(0.99); }
+.card.clickable { cursor: pointer; padding-right: 36px; }
+.card.clickable:hover { box-shadow: 0 4px 16px rgba(13, 71, 161, 0.12); border-left-color: #1565c0; }
+.card-chevron {
+  position: absolute; right: 12px; top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+  display: flex; align-items: center;
+}
+.card.clickable:hover .card-chevron { color: #0d47a1; }
 .card.iminente { border-left-color: #f59e0b; background: linear-gradient(90deg, #fffbeb 0%, white 30%); }
 .card.depositado { border-left-color: #dc2626; background: linear-gradient(90deg, #fef2f2 0%, white 30%); }
 .card.sacado { opacity: 0.65; }
@@ -324,6 +334,89 @@ button.primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
 }
 
 [hidden] { display: none !important; }
+
+/* ============== MODAL DETALHES ============== */
+.modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(4px);
+  z-index: 200;
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+  padding-top: max(20px, env(safe-area-inset-top));
+  padding-bottom: max(20px, env(safe-area-inset-bottom));
+  animation: fadeIn 0.15s ease-out;
+}
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+.modal {
+  background: white;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 540px;
+  max-height: 90vh;
+  overflow: hidden;
+  display: flex; flex-direction: column;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.3);
+  animation: slideUp 0.2s ease-out;
+}
+@keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+.modal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid #e2e8f0;
+  background: linear-gradient(135deg, #0d47a1 0%, #1565c0 100%);
+  color: white;
+}
+.modal-header h3 { margin: 0; font-size: 17px; font-weight: 700; }
+.modal-header .icon-btn { background: rgba(255,255,255,0.15); width: 34px; height: 34px; }
+.modal-header .icon-btn:hover { background: rgba(255,255,255,0.28); }
+.modal-body {
+  padding: 20px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.detalhe-linha {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid #f1f5f9;
+  font-size: 14px;
+}
+.detalhe-linha:last-child { border-bottom: none; }
+.detalhe-label {
+  color: #6b7280; font-weight: 600; font-size: 12px;
+  text-transform: uppercase; letter-spacing: 0.4px;
+  padding-top: 2px;
+}
+.detalhe-valor { color: #0f172a; word-break: break-word; }
+.detalhe-valor strong { color: #0d47a1; font-weight: 700; }
+.detalhe-valor code {
+  background: #f1f5f9; padding: 2px 8px; border-radius: 6px;
+  font-family: "SF Mono", ui-monospace, Menlo, monospace;
+  font-size: 13px; color: #1e293b;
+}
+.detalhe-valor code.tiny { font-size: 11px; }
+.detalhe-valor .status { margin: 0; }
+.muted-inline { color: #94a3b8; font-style: italic; }
+
+@media (max-width: 480px) {
+  .modal { max-height: 95vh; border-radius: 14px 14px 0 0; align-self: flex-end; }
+  .modal-overlay { padding: 0; align-items: flex-end; }
+  .detalhe-linha { grid-template-columns: 1fr; gap: 2px; padding: 10px 0; }
+  .detalhe-label { padding-top: 0; }
+}
+
+@media (prefers-color-scheme: dark) {
+  .modal { background: #1a1f2c; }
+  .modal-header { border-bottom-color: #2d3548; }
+  .modal-body { background: #1a1f2c; }
+  .detalhe-linha { border-bottom-color: #2d3548; }
+  .detalhe-valor { color: #f3f4f6; }
+  .detalhe-valor strong { color: #60a5fa; }
+  .detalhe-valor code { background: #0f1419; color: #e5e7eb; }
+  .card.clickable:hover { box-shadow: 0 4px 16px rgba(96, 165, 250, 0.15); border-left-color: #60a5fa; }
+}
 
 /* ============== RELATORIO ============== */
 .hint { display: block; margin-top: 4px; color: #6b7280; font-size: 12px; }

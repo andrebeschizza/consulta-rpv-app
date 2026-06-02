@@ -9,7 +9,7 @@
   <meta name="apple-mobile-web-app-title" content="AB Calote" />
   <title>AB SEM CALOTE</title>
   <link rel="manifest" href="manifest.json" />
-  <link rel="stylesheet" href="style.css?v=6" />
+  <link rel="stylesheet" href="style.css?v=7" />
 </head>
 <body>
 
@@ -232,10 +232,22 @@
 </main>
 
 <footer class="app-footer">
-  <span>AB SEM CALOTE - v0.5</span>
+  <span>AB SEM CALOTE - v0.6</span>
   <span id="connStatus" class="conn-ok">Conectado</span>
 </footer>
 
-<script src="app.js?v=6"></script>
+<div id="modalOverlay" class="modal-overlay" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <header class="modal-header">
+      <h3 id="modalTitle">Detalhes do processo</h3>
+      <button id="btnFecharModal" class="icon-btn" title="Fechar" aria-label="Fechar">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18"/><path d="M6 6l12 12"/></svg>
+      </button>
+    </header>
+    <div id="modalBody" class="modal-body"></div>
+  </div>
+</div>
+
+<script src="app.js?v=7"></script>
 </body>
 </html>
