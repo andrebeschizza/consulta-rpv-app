@@ -1,4 +1,4 @@
-// AB SEM CALOTE - app PWA v0.7
+// AB SEM CALOTE - app PWA v0.8
 const API_BASE = 'https://n8n.aposentabrasil.net.br/webhook/abscalote';
 const VAPID_PUBLIC = 'BN_LJCRZzyqlBGVeaaiLenhuxLnjwX6t-eU4GEi0wkXJwEfq4OSYiX47aoqjizkbmFKH3XZmXZr8EL-gTW4zEgM';
 const TOKEN_KEY = 'abscalote_token';
@@ -275,29 +275,52 @@ function escapeHtml(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
+// Bool tolerante: aceita true, "TRUE", "true", "1", 1, "sim"
+function asBool(v) {
+  if (v === true || v === 1) return true;
+  if (typeof v === 'string') return /^(true|sim|1|yes|y|s)$/i.test(v.trim());
+  return false;
+}
+
+function calcResumo(p) {
+  const valor = parseFloat(p.valor_estimado || 0) || 0;
+  const pct = parseFloat(p.percentual_honorarios || 0);
+  const hon = p.tipo === 'SUCUMBENCIA' ? 0 : valor * (pct / 100);
+  const divParc = parseFloat(p.divida_parcelas_implantacao || 0) || 0;
+  const divHon = parseFloat(p.divida_honorarios_iniciais || 0) || 0;
+  const inadimp = asBool(p.cliente_inadimplente) && (divParc + divHon) > 0;
+  const debito = inadimp ? (divParc + divHon) : 0;
+  return {
+    valor, pct, hon, divParc, divHon, inadimp,
+    debito,
+    devidoEscritorio: hon + debito,
+    liquidoCliente: p.tipo === 'SUCUMBENCIA' ? 0 : Math.max(valor - hon - debito, 0)
+  };
+}
+
 function renderProcessos(procs) {
   const list = $('#processosList');
   if (!procs.length) { list.innerHTML = '<div class="state"><p>Nenhum processo encontrado.</p></div>'; return; }
   list.innerHTML = procs.map(p => {
-    const valor = parseFloat(p.valor_estimado || 0) || 0;
-    const pct = parseFloat(p.percentual_honorarios || 0);
-    const hon = p.tipo === 'SUCUMBENCIA' ? valor : valor * (pct / 100);
+    const r = calcResumo(p);
     const tipoLabel = { RPV: 'RPV', PRECATORIO: 'Precatorio', SUCUMBENCIA: 'Sucumbencia' }[p.tipo] || p.tipo;
     const cpfDisplay = p.cpf || ('***' + (p.cpf_ultimos4 || '----'));
-    return `<div class="card clickable" data-id="${escapeHtml(p.id)}">
-      <div class="cliente">${escapeHtml(p.nome_cliente || '-')}</div>
+    const inadimpBadge = r.inadimp
+      ? `<span class="badge-inadimp" title="Cliente inadimplente">DEBITO ${fmtBRL(r.debito)}</span>`
+      : '';
+    return `<div class="card clickable${r.inadimp ? ' inadimp' : ''}" data-id="${escapeHtml(p.id)}">
+      <div class="cliente">${escapeHtml(p.nome_cliente || '-')} ${inadimpBadge}</div>
       <div class="meta">CPF: <strong>${escapeHtml(cpfDisplay)}</strong></div>
       <div class="meta">Processo: <strong>${escapeHtml(p.numero_processo || '-')}</strong>${p.numero_rpv ? ' · RPV: ' + escapeHtml(p.numero_rpv) : ''}</div>
-      <div class="meta">TRF${escapeHtml(p.trf)} · ${tipoLabel}${p.tipo !== 'SUCUMBENCIA' && pct ? ' · ' + pct + '% hon.' : ''}</div>
+      <div class="meta">TRF${escapeHtml(p.trf)} · ${tipoLabel}${p.tipo !== 'SUCUMBENCIA' && r.pct ? ' · ' + r.pct + '% hon.' : ''}</div>
       <div class="meta">Advogado: ${escapeHtml(p.advogado_responsavel || '-')}</div>
-      ${valor > 0 ? `<div class="meta">Valor: <strong>${fmtBRL(valor)}</strong> · ${p.tipo === 'SUCUMBENCIA' ? 'Sucumbencia' : 'Honorarios'}: <strong>${fmtBRL(hon)}</strong></div>` : ''}
+      ${r.valor > 0 ? `<div class="meta">Valor: <strong>${fmtBRL(r.valor)}</strong> · ${p.tipo === 'SUCUMBENCIA' ? 'Sucumbencia' : 'Honorarios'}: <strong>${fmtBRL(r.hon || r.valor)}</strong></div>` : ''}
       <span class="status ${p.status_atual || ''}">${(p.status_atual || 'cadastrado').replace(/_/g, ' ')}</span>
       <span class="card-chevron" aria-hidden="true">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg>
       </span>
     </div>`;
   }).join('');
-  // ativa click pra abrir detalhe
   list.querySelectorAll('.card[data-id]').forEach(c => {
     c.addEventListener('click', () => abrirDetalhe(c.dataset.id));
   });
@@ -318,9 +341,7 @@ function abrirDetalhe(id) {
 }
 
 function renderDetalhe(p) {
-  const valor = parseFloat(p.valor_estimado || 0) || 0;
-  const pct = parseFloat(p.percentual_honorarios || 0);
-  const hon = p.tipo === 'SUCUMBENCIA' ? valor : valor * (pct / 100);
+  const r = calcResumo(p);
   const tipoLabel = { RPV: 'RPV', PRECATORIO: 'Precatorio', SUCUMBENCIA: 'Sucumbencia' }[p.tipo] || p.tipo || '-';
   const cpfDisplay = p.cpf || ('***' + (p.cpf_ultimos4 || '----'));
   const statusLabel = (p.status_atual || 'cadastrado').replace(/_/g, ' ');
@@ -333,19 +354,50 @@ function renderDetalhe(p) {
     ['Numero RPV/Precatorio', numeroRPV],
     ['Tipo', escapeHtml(tipoLabel)],
     ['Tribunal', escapeHtml(trfLabel)],
-    ['Valor estimado', `<strong>${fmtBRL(valor)}</strong>`],
+    ['Valor estimado', `<strong>${fmtBRL(r.valor)}</strong>`],
     p.tipo === 'SUCUMBENCIA'
-      ? ['Sucumbencia', `<strong>${fmtBRL(hon)}</strong>`]
-      : ['Honorarios', `<strong>${fmtBRL(hon)}</strong> <span class="muted-inline">(${pct || 0}%)</span>`],
+      ? ['Sucumbencia', `<strong>${fmtBRL(r.valor)}</strong>`]
+      : ['Honorarios', `<strong>${fmtBRL(r.hon)}</strong> <span class="muted-inline">(${r.pct || 0}%)</span>`],
     ['Advogado responsavel', escapeHtml(p.advogado_responsavel || '-')],
     ['Status atual', `<span class="status ${p.status_atual || ''}">${escapeHtml(statusLabel)}</span>`],
     ['Cadastrado em', fmtDate(p.criado_em)],
     ['Atualizado em', fmtDate(p.atualizado_em)],
     ['ID interno', `<code class="tiny">${escapeHtml(p.id || '-')}</code>`]
   ];
-  const html = linhas.map(([k, v]) =>
+  const linhasHtml = linhas.map(([k, v]) =>
     `<div class="detalhe-linha"><span class="detalhe-label">${k}</span><span class="detalhe-valor">${v}</span></div>`
-  ).join('') + `<div class="modal-actions"><button class="primary" id="btnEditar"><span class="btn-text">Editar processo</span></button></div>`;
+  ).join('');
+
+  // Bloco de inadimplencia + resumo financeiro (so quando faz sentido)
+  let blocoFin = '';
+  if (p.tipo !== 'SUCUMBENCIA' && r.valor > 0) {
+    const inadimpHtml = r.inadimp
+      ? `<div class="inadimp-box on">
+          <div class="inadimp-row"><span class="inadimp-badge on">INADIMPLENTE</span><span class="inadimp-total">Total em debito: <strong>${fmtBRL(r.debito)}</strong></span></div>
+          <div class="inadimp-grid">
+            <span>Parcelas de implantacao</span><strong>${fmtBRL(r.divParc)}</strong>
+            <span>Honorarios iniciais</span><strong>${fmtBRL(r.divHon)}</strong>
+          </div>
+         </div>`
+      : `<div class="inadimp-box off">
+          <span class="inadimp-badge off">CLIENTE EM DIA</span>
+          <span class="muted-inline">Sem debitos pendentes.</span>
+         </div>`;
+    blocoFin = `
+      <h4 class="modal-sec-title">Inadimplencia</h4>
+      ${inadimpHtml}
+      <h4 class="modal-sec-title">Resumo financeiro</h4>
+      <div class="resumo-fin">
+        <div class="resumo-row"><span>Valor estimado do ${tipoLabel}</span><strong>${fmtBRL(r.valor)}</strong></div>
+        <div class="resumo-row sub"><span>(-) Honorarios ${r.pct || 0}%</span><strong>${fmtBRL(r.hon)}</strong></div>
+        ${r.debito > 0 ? `<div class="resumo-row sub debito"><span>(-) Debito a abater</span><strong>${fmtBRL(r.debito)}</strong></div>` : ''}
+        <div class="resumo-row total"><span>Total devido ao escritorio</span><strong>${fmtBRL(r.devidoEscritorio)}</strong></div>
+        <div class="resumo-row liquido"><span>Liquido ao cliente</span><strong>${fmtBRL(r.liquidoCliente)}</strong></div>
+      </div>`;
+  }
+
+  const html = linhasHtml + blocoFin +
+    `<div class="modal-actions"><button class="primary" id="btnEditar"><span class="btn-text">Editar processo</span></button></div>`;
   $('#modalBody').innerHTML = html;
   const btn = $('#btnEditar');
   if (btn) btn.addEventListener('click', () => renderEdicao(p));
@@ -354,6 +406,11 @@ function renderDetalhe(p) {
 function renderEdicao(p) {
   const valorRaw = parseFloat(p.valor_estimado || 0) || 0;
   const valorFmt = valorRaw ? formatValor(String(Math.round(valorRaw * 100))) : '';
+  const divParcRaw = parseFloat(p.divida_parcelas_implantacao || 0) || 0;
+  const divHonRaw = parseFloat(p.divida_honorarios_iniciais || 0) || 0;
+  const divParcFmt = divParcRaw ? formatValor(String(Math.round(divParcRaw * 100))) : '';
+  const divHonFmt = divHonRaw ? formatValor(String(Math.round(divHonRaw * 100))) : '';
+  const isInadimp = asBool(p.cliente_inadimplente);
   const html = `
     <form id="editForm" class="edit-form">
       <div class="row">
@@ -403,6 +460,27 @@ function renderEdicao(p) {
             `<option value="${s}"${p.status_atual === s ? ' selected' : ''}>${s.replace(/_/g, ' ')}</option>`).join('')}
         </select>
       </label>
+
+      <fieldset class="inadimp-block edit">
+        <label class="switch-row">
+          <input type="checkbox" name="cliente_inadimplente" id="editInadimp"${isInadimp ? ' checked' : ''} />
+          <span class="switch"></span>
+          <span class="switch-label">Cliente esta inadimplente</span>
+        </label>
+        <div id="editDividasArea" class="dividas-area"${isInadimp ? '' : ' hidden'}>
+          <small class="hint">Valores abatidos do total no depositado.</small>
+          <label>
+            <span>Debito parcelas de implantacao</span>
+            <input name="divida_parcelas_implantacao" id="editDivParc" value="${escapeHtml(divParcFmt)}" inputmode="decimal" placeholder="R$ 0,00" />
+          </label>
+          <label>
+            <span>Debito honorarios iniciais</span>
+            <input name="divida_honorarios_iniciais" id="editDivHon" value="${escapeHtml(divHonFmt)}" inputmode="decimal" placeholder="R$ 0,00" />
+          </label>
+          <small class="hint" id="editDivTotal">Total em debito: <strong>${fmtBRL(divParcRaw + divHonRaw)}</strong></small>
+        </div>
+      </fieldset>
+
       <p id="editMsg" hidden></p>
       <div class="modal-actions split">
         <button type="button" id="btnCancelEdit" class="secondary-ghost">Cancelar</button>
@@ -410,8 +488,23 @@ function renderEdicao(p) {
       </div>
     </form>`;
   $('#modalBody').innerHTML = html;
-  // mascara de valor
+  // mascaras + handlers
   $('#editValor').addEventListener('input', (e) => { e.target.value = formatValor(e.target.value); });
+  const recalcEditDiv = () => {
+    const a = unmaskValor($('#editDivParc').value);
+    const b = unmaskValor($('#editDivHon').value);
+    $('#editDivTotal').innerHTML = `Total em debito: <strong>${fmtBRL(a + b)}</strong>`;
+  };
+  $('#editDivParc').addEventListener('input', (e) => { e.target.value = formatValor(e.target.value); recalcEditDiv(); });
+  $('#editDivHon').addEventListener('input', (e) => { e.target.value = formatValor(e.target.value); recalcEditDiv(); });
+  $('#editInadimp').addEventListener('change', (e) => {
+    $('#editDividasArea').hidden = !e.target.checked;
+    if (!e.target.checked) {
+      $('#editDivParc').value = '';
+      $('#editDivHon').value = '';
+      recalcEditDiv();
+    }
+  });
   $('#btnCancelEdit').addEventListener('click', () => renderDetalhe(p));
   $('#editForm').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -420,6 +513,9 @@ function renderEdicao(p) {
     msg.hidden = true;
     const fd = new FormData(e.target);
     const valor = unmaskValor(fd.get('valor_estimado'));
+    const inadimp = $('#editInadimp').checked;
+    const divParc = inadimp ? unmaskValor(fd.get('divida_parcelas_implantacao')) : 0;
+    const divHon = inadimp ? unmaskValor(fd.get('divida_honorarios_iniciais')) : 0;
     const payload = {
       tipo: fd.get('tipo'),
       trf: parseInt(fd.get('trf'), 10),
@@ -429,12 +525,14 @@ function renderEdicao(p) {
       valor_estimado: valor,
       percentual_honorarios: parseFloat(fd.get('percentual_honorarios') || 0),
       advogado_responsavel: fd.get('advogado_responsavel'),
-      status_atual: fd.get('status_atual')
+      status_atual: fd.get('status_atual'),
+      cliente_inadimplente: inadimp,
+      divida_parcelas_implantacao: divParc,
+      divida_honorarios_iniciais: divHon
     };
     setBtnLoading(btn, true);
     try {
-      const r = await api('POST', '/processos/update', { id: p.id, ...payload });
-      // Atualiza a copia local
+      await api('POST', '/processos/update', { id: p.id, ...payload });
       const idx = (window._procs || []).findIndex(x => String(x.id) === String(p.id));
       if (idx >= 0) {
         window._procs[idx] = { ...window._procs[idx], ...payload, atualizado_em: new Date().toISOString() };
@@ -492,6 +590,23 @@ function recalcHonorarios() {
   $('#hintHonorarios').innerHTML = `Honorarios estimados: <strong>${fmtBRL(hon)}</strong>`;
 }
 
+// Toggle inadimplencia no form Novo
+$('#chkInadimp').addEventListener('change', (e) => {
+  $('#divDividas').hidden = !e.target.checked;
+  if (!e.target.checked) {
+    $('#inpDivParc').value = '';
+    $('#inpDivHon').value = '';
+    recalcDividaTotal();
+  }
+});
+function recalcDividaTotal() {
+  const a = unmaskValor($('#inpDivParc').value);
+  const b = unmaskValor($('#inpDivHon').value);
+  $('#hintDivTotal').innerHTML = `Total em debito: <strong>${fmtBRL(a + b)}</strong>`;
+}
+$('#inpDivParc').addEventListener('input', (e) => { e.target.value = formatValor(e.target.value); recalcDividaTotal(); });
+$('#inpDivHon').addEventListener('input', (e) => { e.target.value = formatValor(e.target.value); recalcDividaTotal(); });
+
 // Sucumbencia esconde campos de cliente
 $('#selTipo').addEventListener('change', (e) => {
   const isSucumb = e.target.value === 'SUCUMBENCIA';
@@ -516,6 +631,9 @@ $('#novoForm').addEventListener('submit', async (e) => {
     showError(msg, 'Valor estimado invalido.');
     return;
   }
+  const inadimpNovo = $('#chkInadimp').checked;
+  const divParcNovo = inadimpNovo ? unmaskValor(fd.get('divida_parcelas_implantacao')) : 0;
+  const divHonNovo = inadimpNovo ? unmaskValor(fd.get('divida_honorarios_iniciais')) : 0;
   const payload = {
     tipo: fd.get('tipo'),
     trf: parseInt(fd.get('trf'), 10),
@@ -525,7 +643,10 @@ $('#novoForm').addEventListener('submit', async (e) => {
     nome_cliente: fd.get('nome_cliente'),
     valor_estimado: valor,
     percentual_honorarios: parseFloat(fd.get('percentual_honorarios') || 0),
-    advogado_responsavel: fd.get('advogado_responsavel')
+    advogado_responsavel: fd.get('advogado_responsavel'),
+    cliente_inadimplente: inadimpNovo,
+    divida_parcelas_implantacao: divParcNovo,
+    divida_honorarios_iniciais: divHonNovo
   };
   setBtnLoading(btn, true);
   try {
@@ -534,6 +655,8 @@ $('#novoForm').addEventListener('submit', async (e) => {
     e.target.reset();
     $('#inpPct').value = '35';
     $('#hintHonorarios').innerHTML = 'Honorarios estimados: <strong>R$ 0,00</strong>';
+    $('#divDividas').hidden = true;
+    $('#hintDivTotal').innerHTML = 'Total em debito: <strong>R$ 0,00</strong>';
     window._procs = null;
     setTimeout(() => trocarView('processos'), 1500);
   } catch (err) {

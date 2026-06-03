@@ -9,7 +9,7 @@
   <meta name="apple-mobile-web-app-title" content="AB Calote" />
   <title>AB SEM CALOTE</title>
   <link rel="manifest" href="manifest.json" />
-  <link rel="stylesheet" href="style.css?v=8" />
+  <link rel="stylesheet" href="style.css?v=9" />
 </head>
 <body>
 
@@ -166,6 +166,26 @@
         <input name="advogado_responsavel" required placeholder="Nome do advogado" id="inpAdv" />
       </label>
 
+      <fieldset class="inadimp-block">
+        <label class="switch-row">
+          <input type="checkbox" name="cliente_inadimplente" id="chkInadimp" />
+          <span class="switch"></span>
+          <span class="switch-label">Cliente esta inadimplente com o escritorio</span>
+        </label>
+        <div id="divDividas" class="dividas-area" hidden>
+          <small class="hint">Esses valores serao abatidos do total a receber ao depositar.</small>
+          <label>
+            <span>Debito parcelas de implantacao</span>
+            <input name="divida_parcelas_implantacao" inputmode="decimal" placeholder="R$ 0,00" id="inpDivParc" />
+          </label>
+          <label>
+            <span>Debito honorarios iniciais</span>
+            <input name="divida_honorarios_iniciais" inputmode="decimal" placeholder="R$ 0,00" id="inpDivHon" />
+          </label>
+          <small class="hint" id="hintDivTotal">Total em debito: <strong>R$ 0,00</strong></small>
+        </div>
+      </fieldset>
+
       <button type="submit" class="primary">
         <span class="btn-text">Cadastrar processo</span>
         <span class="spinner" hidden></span>
@@ -232,7 +252,7 @@
 </main>
 
 <footer class="app-footer">
-  <span>AB SEM CALOTE - v0.7</span>
+  <span>AB SEM CALOTE - v0.8</span>
   <span id="connStatus" class="conn-ok">Conectado</span>
 </footer>
 
@@ -248,6 +268,6 @@
   </div>
 </div>
 
-<script src="app.js?v=8"></script>
+<script src="app.js?v=9"></script>
 </body>
 </html>
