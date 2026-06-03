@@ -1,4 +1,4 @@
-// AB SEM CALOTE - app PWA v1.1 (backend: Google Apps Script)
+// AB SEM CALOTE - app PWA v1.2 (backend: Google Apps Script)
 // API_BASE deve ser a URL Web app do GAS, terminada em /exec.
 // Se ainda nao foi configurada, o app mostra erro claro no login.
 
@@ -192,7 +192,7 @@ function hideLogin() {
   if ('Notification' in window && Notification.permission === 'default') $('#btnNotif').hidden = false;
   // Popula dropdown de advogados (sem valor inicial — usuario seleciona)
   $('#inpAdv').innerHTML = optsAdvogados('');
-  trocarView('alertas');
+  trocarView('home');
 }
 
 $('#loginForm').addEventListener('submit', async (e) => {
@@ -225,6 +225,7 @@ $('#btnLogout').addEventListener('click', () => {
 $('#btnNotif').addEventListener('click', pedirPermissaoPush);
 $('#btnRefresh').addEventListener('click', () => {
   const v = document.querySelector('.tab.active')?.dataset.view;
+  if (v === 'home') carregarHome();
   if (v === 'alertas') carregarAlertas();
   if (v === 'processos') carregarProcessos();
 });
@@ -232,6 +233,7 @@ $('#btnRefresh').addEventListener('click', () => {
 function trocarView(nome) {
   $$('.tab').forEach(t => t.classList.toggle('active', t.dataset.view === nome));
   $$('main section').forEach(s => s.hidden = s.id !== nome + 'View');
+  if (nome === 'home') carregarHome();
   if (nome === 'alertas') carregarAlertas();
   if (nome === 'processos') carregarProcessos();
 }
@@ -306,15 +308,17 @@ async function carregarProcessos() {
     const arr = arrAll.filter(p => (p.id && String(p.id).trim()) || (p.nome_cliente && String(p.nome_cliente).trim()) || (p.cpf && String(p.cpf).trim()));
     const filtradas = arrAll.length - arr.length;
     window._procs = arr;
+    popularFiltroAdv();
     if (!arr.length) {
       renderEmpty(list,
         '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2z"/></svg>',
         'Nenhum processo', filtradas > 0
           ? `${filtradas} linha(s) vazia(s) na Sheets foram ocultada(s). Cadastre na aba "Novo".`
           : 'Cadastre o primeiro na aba "Novo".');
+      $('#filtroContador').textContent = '0 processos';
       return;
     }
-    renderProcessos(arr);
+    aplicarFiltros(); // ja renderiza com filtros vigentes
     if (filtradas > 0) {
       const aviso = document.createElement('div');
       aviso.className = 'aviso-banner';
@@ -741,13 +745,176 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && !$('#modalOverlay').hidden) fecharModal();
 });
 
+// ============================================================================
+// Filtros da aba Processos
+// ============================================================================
+window._filtros = { trf: '', status: '', inadimp: '', adv: '', busca: '' };
+
+function aplicarFiltros() {
+  const f = window._filtros;
+  const q = (f.busca || '').toLowerCase().trim();
+  const arr = (window._procs || []).filter(p => {
+    if (f.trf && String(p.trf) !== f.trf) return false;
+    if (f.status && (p.status_atual || '') !== f.status) return false;
+    if (f.inadimp === 'sim' && !calcResumo(p).inadimp) return false;
+    if (f.inadimp === 'nao' && calcResumo(p).inadimp) return false;
+    if (f.adv && (p.advogado_responsavel || '') !== f.adv) return false;
+    if (q) {
+      const hay = `${p.nome_cliente || ''} ${p.cpf || ''} ${p.cpf_ultimos4 || ''} ${p.numero_processo || ''} ${p.numero_rpv || ''}`.toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+  renderProcessos(arr);
+  $('#filtroContador').textContent = `${arr.length} processo${arr.length !== 1 ? 's' : ''}`;
+  const algum = f.trf || f.status || f.inadimp || f.adv || f.busca;
+  $('#filtroLimpar').hidden = !algum;
+}
+
 $('#filtroProcessos').addEventListener('input', (e) => {
-  const q = e.target.value.toLowerCase().trim();
-  const fil = (window._procs || []).filter(p =>
-    !q || (p.nome_cliente || '').toLowerCase().includes(q) || (p.cpf_ultimos4 || '').includes(q)
-  );
-  renderProcessos(fil);
+  window._filtros.busca = e.target.value;
+  aplicarFiltros();
 });
+
+// Chips handlers
+function bindChips(container, key) {
+  container.addEventListener('click', (e) => {
+    const btn = e.target.closest('.chip');
+    if (!btn) return;
+    container.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+    btn.classList.add('active');
+    window._filtros[key] = btn.dataset[key] || '';
+    aplicarFiltros();
+  });
+}
+bindChips($('#chipsTrf'), 'trf');
+bindChips($('#chipsStatus'), 'status');
+bindChips($('#chipsInadimp'), 'inadimp');
+
+$('#filtroAdv').addEventListener('change', (e) => {
+  window._filtros.adv = e.target.value;
+  aplicarFiltros();
+});
+
+$('#filtroLimpar').addEventListener('click', () => {
+  window._filtros = { trf: '', status: '', inadimp: '', adv: '', busca: '' };
+  $('#filtroProcessos').value = '';
+  $('#filtroAdv').value = '';
+  document.querySelectorAll('.chips').forEach(c => {
+    c.querySelectorAll('.chip').forEach((b, i) => b.classList.toggle('active', i === 0));
+  });
+  aplicarFiltros();
+});
+
+// Popula dropdown de advogados do filtro com os realmente usados nos processos
+function popularFiltroAdv() {
+  const sel = $('#filtroAdv');
+  const usados = Array.from(new Set((window._procs || []).map(p => p.advogado_responsavel).filter(Boolean))).sort();
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">Todos</option>' +
+    usados.map(a => `<option value="${escapeHtml(a)}"${a === cur ? ' selected' : ''}>${escapeHtml(a)}</option>`).join('');
+}
+
+// ============================================================================
+// HOME / Dashboard
+// ============================================================================
+async function carregarHome() {
+  const saudacao = $('#homeSaudacao');
+  // Greeting baseado na hora
+  const h = new Date().getHours();
+  const periodo = h < 12 ? 'Bom dia' : (h < 18 ? 'Boa tarde' : 'Boa noite');
+  try {
+    const email = localStorage.getItem(EMAIL_KEY) || '';
+    const nome = email.split('@')[0].split('.')[0];
+    const nomeFmt = nome.charAt(0).toUpperCase() + nome.slice(1);
+    saudacao.textContent = `${periodo}, ${nomeFmt}. Resumo do escritorio.`;
+  } catch {}
+
+  // Garante dados carregados (mesmo cache de processos)
+  let procs = window._procs;
+  if (!procs) {
+    try {
+      const r = await api('processos/list');
+      procs = Array.isArray(r.data) ? r.data.filter(p => p.id || p.nome_cliente || p.cpf) : [];
+      window._procs = procs;
+    } catch (e) {
+      console.warn('Falha ao carregar processos pro home:', e);
+      procs = [];
+    }
+  }
+
+  // Conta alertas via API alertas/list
+  let nAlertas = 0;
+  try {
+    const ra = await api('alertas/list');
+    nAlertas = Array.isArray(ra.data) ? ra.data.filter(a => !a.visto_em).length : 0;
+  } catch (e) {
+    nAlertas = 0;
+  }
+
+  // KPIs
+  const ativos = procs.filter(p => p.status_atual !== 'sacado');
+  let totalReceber = 0, totalAtraso = 0, nInadimp = 0;
+  ativos.forEach(p => {
+    const r = calcResumo(p);
+    if (p.tipo === 'SUCUMBENCIA') totalReceber += r.valor;
+    else totalReceber += r.hon;
+    if (r.inadimp) {
+      totalAtraso += r.debito;
+      nInadimp++;
+    }
+  });
+
+  $('#kpiAtivos').textContent = ativos.length;
+  $('#kpiAtivosDetail').textContent = `de ${procs.length} cadastrado${procs.length !== 1 ? 's' : ''}`;
+  $('#kpiReceber').textContent = fmtBRL(totalReceber);
+  $('#kpiAtraso').textContent = fmtBRL(totalAtraso);
+  $('#kpiAtrasoDetail').textContent = `${nInadimp} inadimplente${nInadimp !== 1 ? 's' : ''}`;
+  $('#kpiAlertas').textContent = nAlertas;
+
+  // Distribuicao por status
+  const statusOrder = ['cadastrado', 'em_pagamento', 'encaminhado_banco', 'depositado', 'sacado'];
+  const statusLabel = {
+    cadastrado: 'Cadastrado',
+    em_pagamento: 'Em pagamento',
+    encaminhado_banco: 'Encam. banco',
+    depositado: 'Depositado',
+    sacado: 'Sacado'
+  };
+  const statusCount = {};
+  procs.forEach(p => {
+    const s = p.status_atual || 'cadastrado';
+    statusCount[s] = (statusCount[s] || 0) + 1;
+  });
+  const maxStatus = Math.max(1, ...Object.values(statusCount));
+  $('#homeStatus').innerHTML = statusOrder.map(s => {
+    const n = statusCount[s] || 0;
+    const pct = (n / maxStatus * 100).toFixed(1);
+    return `<div class="bar-row">
+      <span class="bar-label">${statusLabel[s]}</span>
+      <div class="bar-track"><div class="bar-fill ${s}" style="width:${pct}%"></div></div>
+      <span class="bar-count">${n}</span>
+    </div>`;
+  }).join('') || '<p class="muted" style="text-align:center;padding:20px">Sem dados</p>';
+
+  // Distribuicao por TRF
+  const trfCount = {};
+  procs.forEach(p => {
+    const t = String(p.trf || '-');
+    trfCount[t] = (trfCount[t] || 0) + 1;
+  });
+  const trfKeys = Object.keys(trfCount).sort();
+  const maxTrf = Math.max(1, ...Object.values(trfCount));
+  $('#homeTrf').innerHTML = trfKeys.length ? trfKeys.map(t => {
+    const n = trfCount[t];
+    const pct = (n / maxTrf * 100).toFixed(1);
+    return `<div class="bar-row">
+      <span class="bar-label">TRF${escapeHtml(t)}</span>
+      <div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div>
+      <span class="bar-count">${n}</span>
+    </div>`;
+  }).join('') : '<p class="muted" style="text-align:center;padding:20px">Sem dados</p>';
+}
 
 // ============================================================================
 // Cadastro (form Novo)

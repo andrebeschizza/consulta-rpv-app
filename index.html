@@ -9,7 +9,7 @@
   <meta name="apple-mobile-web-app-title" content="AB Calote" />
   <title>AB SEM CALOTE</title>
   <link rel="manifest" href="manifest.json" />
-  <link rel="stylesheet" href="style.css?v=17" />
+  <link rel="stylesheet" href="style.css?v=18" />
 </head>
 <body>
 
@@ -37,7 +37,11 @@
 </header>
 
 <nav class="tabs" id="tabs" hidden>
-  <button data-view="alertas" class="tab active">
+  <button data-view="home" class="tab active">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 12l9-9 9 9"/><path d="M5 10v10a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V10"/></svg>
+    <span>Home</span>
+  </button>
+  <button data-view="alertas" class="tab">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/></svg>
     <span>Alertas</span>
     <span id="alertasCount" class="badge"></span>
@@ -84,6 +88,45 @@
     </div>
   </section>
 
+  <section id="homeView" hidden>
+    <header class="section-header">
+      <h2>Painel</h2>
+      <p class="muted" id="homeSaudacao">Resumo do escritorio.</p>
+    </header>
+    <div id="homeKpis" class="home-kpis">
+      <div class="kpi-card">
+        <span class="kpi-label">Processos ativos</span>
+        <span class="kpi-value" id="kpiAtivos">-</span>
+        <span class="kpi-detail" id="kpiAtivosDetail">de 0 cadastrados</span>
+      </div>
+      <div class="kpi-card receber">
+        <span class="kpi-label">A receber escritorio</span>
+        <span class="kpi-value" id="kpiReceber">-</span>
+        <span class="kpi-detail">honorarios + sucumbencias</span>
+      </div>
+      <div class="kpi-card atraso">
+        <span class="kpi-label">Em atraso (clientes)</span>
+        <span class="kpi-value" id="kpiAtraso">-</span>
+        <span class="kpi-detail" id="kpiAtrasoDetail">0 inadimplentes</span>
+      </div>
+      <div class="kpi-card alertas">
+        <span class="kpi-label">Alertas pendentes</span>
+        <span class="kpi-value" id="kpiAlertas">-</span>
+        <span class="kpi-detail">consultar aba Alertas</span>
+      </div>
+    </div>
+
+    <div class="home-section">
+      <h3 class="home-section-title">Distribuicao por status</h3>
+      <div id="homeStatus" class="home-bars"></div>
+    </div>
+
+    <div class="home-section">
+      <h3 class="home-section-title">Distribuicao por TRF</h3>
+      <div id="homeTrf" class="home-bars"></div>
+    </div>
+  </section>
+
   <section id="alertasView" hidden>
     <header class="section-header">
       <h2>Alertas</h2>
@@ -99,8 +142,53 @@
     </header>
     <div class="search-bar">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/></svg>
-      <input id="filtroProcessos" type="search" placeholder="Buscar por nome ou 4 ultimos do CPF" />
+      <input id="filtroProcessos" type="search" placeholder="Buscar por nome, CPF ou numero do processo..." />
     </div>
+
+    <div class="filtros-wrap">
+      <div class="filtro-linha">
+        <span class="filtro-label">TRF:</span>
+        <div class="chips" id="chipsTrf">
+          <button data-trf="" class="chip active">Todos</button>
+          <button data-trf="1" class="chip">TRF1</button>
+          <button data-trf="2" class="chip">TRF2</button>
+          <button data-trf="3" class="chip">TRF3</button>
+          <button data-trf="4" class="chip">TRF4</button>
+          <button data-trf="5" class="chip">TRF5</button>
+          <button data-trf="6" class="chip">TRF6</button>
+        </div>
+      </div>
+      <div class="filtro-linha">
+        <span class="filtro-label">Status:</span>
+        <div class="chips" id="chipsStatus">
+          <button data-status="" class="chip active">Todos</button>
+          <button data-status="cadastrado" class="chip">Cadastrado</button>
+          <button data-status="em_pagamento" class="chip">Em pagamento</button>
+          <button data-status="encaminhado_banco" class="chip">Encam. banco</button>
+          <button data-status="depositado" class="chip">Depositado</button>
+          <button data-status="sacado" class="chip">Sacado</button>
+        </div>
+      </div>
+      <div class="filtro-linha">
+        <span class="filtro-label">Inadimplencia:</span>
+        <div class="chips" id="chipsInadimp">
+          <button data-inadimp="" class="chip active">Todos</button>
+          <button data-inadimp="sim" class="chip">Inadimplentes</button>
+          <button data-inadimp="nao" class="chip">Em dia</button>
+        </div>
+      </div>
+      <div class="filtro-linha">
+        <span class="filtro-label">Advogado:</span>
+        <select id="filtroAdv" class="filtro-select">
+          <option value="">Todos</option>
+        </select>
+      </div>
+      <div class="filtros-rodape">
+        <span id="filtroContador" class="filtro-contador">0 processos</span>
+        <button id="filtroLimpar" class="filtro-limpar" hidden>Limpar filtros</button>
+      </div>
+    </div>
+
     <div id="processosList" class="list"></div>
   </section>
 
@@ -261,7 +349,7 @@
 </main>
 
 <footer class="app-footer">
-  <span>AB SEM CALOTE - v1.1</span>
+  <span>AB SEM CALOTE - v1.2</span>
   <span id="connStatus" class="conn-ok">Conectado</span>
 </footer>
 
@@ -287,6 +375,6 @@
   </div>
 </div>
 
-<script src="app.js?v=17"></script>
+<script src="app.js?v=18"></script>
 </body>
 </html>
