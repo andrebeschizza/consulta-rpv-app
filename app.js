@@ -1,7 +1,7 @@
 // AB SEM CALOTE - app PWA v0.9 (backend: Google Apps Script)
 // API_BASE deve ser a URL Web app do GAS, terminada em /exec.
 // Se ainda nao foi configurada, o app mostra erro claro no login.
-const API_BASE = 'https://script.google.com/macros/s/__GAS_WEB_APP_URL__/exec';
+const API_BASE = 'https://script.google.com/macros/s/AKfycbwE-j_WyiD8YHQRli_cFjmCRzFFLsveTq2g-LRfUdg0MNw7B8sUr-UMROrkDim888UG/exec';
 const VAPID_PUBLIC = 'BN_LJCRZzyqlBGVeaaiLenhuxLnjwX6t-eU4GEi0wkXJwEfq4OSYiX47aoqjizkbmFKH3XZmXZr8EL-gTW4zEgM';
 const TOKEN_KEY = 'abscalote_token';
 const EMAIL_KEY = 'abscalote_email';
