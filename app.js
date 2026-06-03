@@ -1,5 +1,7 @@
-// AB SEM CALOTE - app PWA v0.8
-const API_BASE = 'https://n8n.aposentabrasil.net.br/webhook/abscalote';
+// AB SEM CALOTE - app PWA v0.9 (backend: Google Apps Script)
+// API_BASE deve ser a URL Web app do GAS, terminada em /exec.
+// Se ainda nao foi configurada, o app mostra erro claro no login.
+const API_BASE = 'https://script.google.com/macros/s/__GAS_WEB_APP_URL__/exec';
 const VAPID_PUBLIC = 'BN_LJCRZzyqlBGVeaaiLenhuxLnjwX6t-eU4GEi0wkXJwEfq4OSYiX47aoqjizkbmFKH3XZmXZr8EL-gTW4zEgM';
 const TOKEN_KEY = 'abscalote_token';
 const EMAIL_KEY = 'abscalote_email';
@@ -82,7 +84,8 @@ async function pedirPermissaoPush() {
       userVisibleOnly: true,
       applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC)
     });
-    await api('POST', '/push/subscribe', sub);
+    // TODO: implementar endpoint push/subscribe no GAS (ou manter no n8n W04)
+    console.info('Push subscription pronta. Endpoint do servidor ainda nao implementado:', sub);
     $('#btnNotif').hidden = true;
   } catch (e) { console.error('Push falhou:', e); }
 }
@@ -99,37 +102,49 @@ function urlBase64ToUint8Array(b64) {
 // ============================================================================
 const token = () => { try { return localStorage.getItem(TOKEN_KEY); } catch { return null; } };
 
-async function api(method, path, body) {
+// API protocol (Google Apps Script):
+//  - Sempre POST com Content-Type text/plain (evita preflight CORS)
+//  - Body JSON contem { path, _token, ...payload }
+//  - Resposta sempre 200 OK com envelope { ok, status, data?, id?, erro?, mensagem? }
+async function api(path, payload) {
+  if (API_BASE.includes('__GAS_WEB_APP_URL__')) {
+    throw new Error('API ainda nao configurada. Dr. Andre precisa publicar o Apps Script e atualizar API_BASE.');
+  }
+  const cleanPath = String(path || '').replace(/^\/+/, '');
+  const body = Object.assign({ path: cleanPath }, payload || {});
+  const tk = token();
+  if (tk && cleanPath !== 'auth/login') body._token = tk;
+
   let res;
   try {
-    res = await fetch(API_BASE + path, {
-      method,
-      headers: { 'Content-Type': 'application/json', ...(token() && { Authorization: 'Bearer ' + token() }) },
-      body: body ? JSON.stringify(body) : undefined
+    res = await fetch(API_BASE, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(body),
+      redirect: 'follow'
     });
   } catch (e) {
     setConnStatus(false, 'Sem internet');
     throw new Error('Sem conexao com o servidor.');
   }
   setConnStatus(true);
-  if (res.status === 401) {
-    try { localStorage.removeItem(TOKEN_KEY); } catch {}
-    showLogin();
-    throw new Error('Sessao expirada');
+
+  let j;
+  try { j = await res.json(); }
+  catch (e) {
+    throw new Error('Resposta invalida do servidor (nao e JSON).');
   }
-  if (!res.ok) {
-    const txt = await res.text().catch(() => '');
-    // Tenta extrair mensagem clara do JSON
-    try {
-      const j = JSON.parse(txt);
-      const m = j.mensagem || j.erro || txt;
-      throw new Error(`HTTP ${res.status}: ${m}`);
-    } catch (parseErr) {
-      if (parseErr.message?.startsWith('HTTP ')) throw parseErr;
-      throw new Error(`Erro do servidor (HTTP ${res.status}). ${txt.slice(0, 200)}`);
+
+  if (!j.ok) {
+    if (j.status === 401) {
+      try { localStorage.removeItem(TOKEN_KEY); } catch {}
+      showLogin();
+      throw new Error('Sessao expirada');
     }
+    const msg = j.mensagem || j.erro || `Erro (status ${j.status || '?'})`;
+    throw new Error(msg);
   }
-  try { return await res.json(); } catch { return null; }
+  return j;
 }
 
 // ============================================================================
@@ -172,17 +187,9 @@ $('#loginForm').addEventListener('submit', async (e) => {
   const senha = fd.get('senha');
   setBtnLoading(btn, true);
   try {
-    const r = await fetch(API_BASE + '/auth/login', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, senha })
-    });
-    if (!r.ok) {
-      if (r.status === 401) throw new Error('E-mail ou senha incorretos.');
-      throw new Error(`Erro do servidor (HTTP ${r.status}).`);
-    }
-    const data = await r.json();
-    if (!data.token) throw new Error('Resposta invalida do servidor.');
-    localStorage.setItem(TOKEN_KEY, data.token);
+    const r = await api('auth/login', { email, senha });
+    if (!r.token) throw new Error('Resposta invalida do servidor.');
+    localStorage.setItem(TOKEN_KEY, r.token);
     localStorage.setItem(EMAIL_KEY, email);
     hideLogin();
   } catch (err) {
@@ -231,8 +238,8 @@ async function carregarAlertas() {
   const count = $('#alertasCount');
   renderSkeleton(list, 3);
   try {
-    const r = await api('GET', '/alertas?status=ativo');
-    const arr = Array.isArray(r) ? r : (r?.body && Array.isArray(r.body) ? r.body : []);
+    const r = await api('alertas/list');
+    const arr = Array.isArray(r.data) ? r.data : [];
     count.textContent = arr.filter(a => !a.visto_em).length || '';
     if (!arr.length) {
       renderEmpty(list,
@@ -263,9 +270,9 @@ async function carregarProcessos() {
   const list = $('#processosList');
   renderSkeleton(list, 4);
   try {
-    const r = await api('GET', '/processos');
-    const arrAll = Array.isArray(r) ? r : (r?.body && Array.isArray(r.body) ? r.body : []);
-    // Filtra linhas-fantasma da Sheets (sem id, sem nome, sem CPF — cadastros incompletos)
+    const r = await api('processos/list');
+    const arrAll = Array.isArray(r.data) ? r.data : [];
+    // Filtra linhas-fantasma (defensivo; GAS ja filtra server-side)
     const arr = arrAll.filter(p => (p.id && String(p.id).trim()) || (p.nome_cliente && String(p.nome_cliente).trim()) || (p.cpf && String(p.cpf).trim()));
     const filtradas = arrAll.length - arr.length;
     window._procs = arr;
@@ -551,7 +558,7 @@ function renderEdicao(p) {
     };
     setBtnLoading(btn, true);
     try {
-      await api('POST', '/processos/update', { id: p.id, ...payload });
+      await api('processos/update', { id: p.id, ...payload });
       const idx = (window._procs || []).findIndex(x => String(x.id) === String(p.id));
       if (idx >= 0) {
         window._procs[idx] = { ...window._procs[idx], ...payload, atualizado_em: new Date().toISOString() };
@@ -669,7 +676,7 @@ $('#novoForm').addEventListener('submit', async (e) => {
   };
   setBtnLoading(btn, true);
   try {
-    await api('POST', '/processos', payload);
+    await api('processos', payload);
     showSuccess(msg, `Cadastrado. Honorarios estimados: ${fmtBRL(valor * payload.percentual_honorarios / 100)}.`);
     e.target.reset();
     $('#inpPct').value = '35';
