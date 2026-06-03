@@ -256,15 +256,26 @@ async function carregarProcessos() {
   renderSkeleton(list, 4);
   try {
     const r = await api('GET', '/processos');
-    const arr = Array.isArray(r) ? r : (r?.body && Array.isArray(r.body) ? r.body : []);
+    const arrAll = Array.isArray(r) ? r : (r?.body && Array.isArray(r.body) ? r.body : []);
+    // Filtra linhas-fantasma da Sheets (sem id, sem nome, sem CPF — cadastros incompletos)
+    const arr = arrAll.filter(p => (p.id && String(p.id).trim()) || (p.nome_cliente && String(p.nome_cliente).trim()) || (p.cpf && String(p.cpf).trim()));
+    const filtradas = arrAll.length - arr.length;
     window._procs = arr;
     if (!arr.length) {
       renderEmpty(list,
         '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2z"/></svg>',
-        'Nenhum processo', 'Cadastre o primeiro na aba "Novo".');
+        'Nenhum processo', filtradas > 0
+          ? `${filtradas} linha(s) vazia(s) na Sheets foram ocultada(s). Cadastre na aba "Novo".`
+          : 'Cadastre o primeiro na aba "Novo".');
       return;
     }
     renderProcessos(arr);
+    if (filtradas > 0) {
+      const aviso = document.createElement('div');
+      aviso.className = 'aviso-banner';
+      aviso.innerHTML = `<strong>Aviso:</strong> ${filtradas} linha(s) vazia(s) na Sheets foram ocultada(s) automaticamente.`;
+      list.insertBefore(aviso, list.firstChild);
+    }
   } catch (e) {
     if (e.message === 'Sessao expirada') return;
     renderError(list, e.message, 'carregarProcessos');
