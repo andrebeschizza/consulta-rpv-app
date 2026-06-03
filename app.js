@@ -119,7 +119,15 @@ async function api(method, path, body) {
   }
   if (!res.ok) {
     const txt = await res.text().catch(() => '');
-    throw new Error(`Erro do servidor (HTTP ${res.status}). ${txt.slice(0, 100)}`);
+    // Tenta extrair mensagem clara do JSON
+    try {
+      const j = JSON.parse(txt);
+      const m = j.mensagem || j.erro || txt;
+      throw new Error(`HTTP ${res.status}: ${m}`);
+    } catch (parseErr) {
+      if (parseErr.message?.startsWith('HTTP ')) throw parseErr;
+      throw new Error(`Erro do servidor (HTTP ${res.status}). ${txt.slice(0, 200)}`);
+    }
   }
   try { return await res.json(); } catch { return null; }
 }
