@@ -1,4 +1,4 @@
-// AB SEM CALOTE - app PWA v0.6
+// AB SEM CALOTE - app PWA v0.7
 const API_BASE = 'https://n8n.aposentabrasil.net.br/webhook/abscalote';
 const VAPID_PUBLIC = 'BN_LJCRZzyqlBGVeaaiLenhuxLnjwX6t-eU4GEi0wkXJwEfq4OSYiX47aoqjizkbmFKH3XZmXZr8EL-gTW4zEgM';
 const TOKEN_KEY = 'abscalote_token';
@@ -56,7 +56,20 @@ function setConnStatus(ok, msg) {
 // Service worker + push
 // ============================================================================
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('service-worker.js').catch(e => console.warn('SW falhou:', e));
+  navigator.serviceWorker.register('service-worker.js').then(reg => {
+    // Verifica updates a cada carregamento
+    reg.update().catch(() => {});
+    reg.addEventListener('updatefound', () => {
+      const sw = reg.installing;
+      if (!sw) return;
+      sw.addEventListener('statechange', () => {
+        if (sw.state === 'installed' && navigator.serviceWorker.controller) {
+          // Nova versao pronta; ja vai assumir no proximo navigate (skipWaiting + claim)
+          console.info('Nova versao do app disponivel. Recarregue se nao atualizar sozinho.');
+        }
+      });
+    });
+  }).catch(e => console.warn('SW falhou:', e));
 }
 
 async function pedirPermissaoPush() {
@@ -291,11 +304,20 @@ function renderProcessos(procs) {
 }
 
 // ============================================================================
-// Modal de detalhes do processo
+// Modal de detalhes / edicao do processo
 // ============================================================================
+let _modalProcId = null;
+
 function abrirDetalhe(id) {
   const p = (window._procs || []).find(x => String(x.id) === String(id));
   if (!p) { alert('Processo nao encontrado. Atualize a lista.'); return; }
+  _modalProcId = p.id;
+  renderDetalhe(p);
+  $('#modalOverlay').hidden = false;
+  document.body.style.overflow = 'hidden';
+}
+
+function renderDetalhe(p) {
   const valor = parseFloat(p.valor_estimado || 0) || 0;
   const pct = parseFloat(p.percentual_honorarios || 0);
   const hon = p.tipo === 'SUCUMBENCIA' ? valor : valor * (pct / 100);
@@ -321,16 +343,120 @@ function abrirDetalhe(id) {
     ['Atualizado em', fmtDate(p.atualizado_em)],
     ['ID interno', `<code class="tiny">${escapeHtml(p.id || '-')}</code>`]
   ];
-  $('#modalBody').innerHTML = linhas.map(([k, v]) =>
+  const html = linhas.map(([k, v]) =>
     `<div class="detalhe-linha"><span class="detalhe-label">${k}</span><span class="detalhe-valor">${v}</span></div>`
-  ).join('');
-  $('#modalOverlay').hidden = false;
-  document.body.style.overflow = 'hidden';
+  ).join('') + `<div class="modal-actions"><button class="primary" id="btnEditar"><span class="btn-text">Editar processo</span></button></div>`;
+  $('#modalBody').innerHTML = html;
+  const btn = $('#btnEditar');
+  if (btn) btn.addEventListener('click', () => renderEdicao(p));
+}
+
+function renderEdicao(p) {
+  const valorRaw = parseFloat(p.valor_estimado || 0) || 0;
+  const valorFmt = valorRaw ? formatValor(String(Math.round(valorRaw * 100))) : '';
+  const html = `
+    <form id="editForm" class="edit-form">
+      <div class="row">
+        <label>
+          <span>Tipo</span>
+          <select name="tipo">
+            <option value="RPV"${p.tipo === 'RPV' ? ' selected' : ''}>RPV</option>
+            <option value="PRECATORIO"${p.tipo === 'PRECATORIO' ? ' selected' : ''}>Precatorio</option>
+            <option value="SUCUMBENCIA"${p.tipo === 'SUCUMBENCIA' ? ' selected' : ''}>Sucumbencia</option>
+          </select>
+        </label>
+        <label>
+          <span>TRF</span>
+          <select name="trf">
+            ${[1,3,4,5].map(n => `<option value="${n}"${parseInt(p.trf,10) === n ? ' selected' : ''}>TRF${n}</option>`).join('')}
+          </select>
+        </label>
+      </div>
+      <label>
+        <span>Numero do processo</span>
+        <input name="numero_processo" value="${escapeHtml(p.numero_processo || '')}" />
+      </label>
+      <label>
+        <span>Numero RPV/Precatorio</span>
+        <input name="numero_rpv" value="${escapeHtml(p.numero_rpv || '')}" />
+      </label>
+      <label>
+        <span>Nome do cliente</span>
+        <input name="nome_cliente" value="${escapeHtml(p.nome_cliente || '')}" />
+      </label>
+      <label>
+        <span>Valor estimado</span>
+        <input name="valor_estimado" id="editValor" value="${escapeHtml(valorFmt)}" inputmode="decimal" />
+      </label>
+      <label>
+        <span>Percentual de honorarios (%)</span>
+        <input name="percentual_honorarios" type="number" step="0.5" min="0" max="100" value="${escapeHtml(p.percentual_honorarios || 35)}" />
+      </label>
+      <label>
+        <span>Advogado responsavel</span>
+        <input name="advogado_responsavel" value="${escapeHtml(p.advogado_responsavel || '')}" />
+      </label>
+      <label>
+        <span>Status atual</span>
+        <select name="status_atual">
+          ${['cadastrado','em_pagamento','encaminhado_banco','depositado','sacado'].map(s =>
+            `<option value="${s}"${p.status_atual === s ? ' selected' : ''}>${s.replace(/_/g, ' ')}</option>`).join('')}
+        </select>
+      </label>
+      <p id="editMsg" hidden></p>
+      <div class="modal-actions split">
+        <button type="button" id="btnCancelEdit" class="secondary-ghost">Cancelar</button>
+        <button type="submit" class="primary"><span class="btn-text">Salvar alteracoes</span><span class="spinner" hidden></span></button>
+      </div>
+    </form>`;
+  $('#modalBody').innerHTML = html;
+  // mascara de valor
+  $('#editValor').addEventListener('input', (e) => { e.target.value = formatValor(e.target.value); });
+  $('#btnCancelEdit').addEventListener('click', () => renderDetalhe(p));
+  $('#editForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = e.target.querySelector('button[type=submit]');
+    const msg = $('#editMsg');
+    msg.hidden = true;
+    const fd = new FormData(e.target);
+    const valor = unmaskValor(fd.get('valor_estimado'));
+    const payload = {
+      tipo: fd.get('tipo'),
+      trf: parseInt(fd.get('trf'), 10),
+      numero_processo: fd.get('numero_processo'),
+      numero_rpv: fd.get('numero_rpv') || '',
+      nome_cliente: fd.get('nome_cliente'),
+      valor_estimado: valor,
+      percentual_honorarios: parseFloat(fd.get('percentual_honorarios') || 0),
+      advogado_responsavel: fd.get('advogado_responsavel'),
+      status_atual: fd.get('status_atual')
+    };
+    setBtnLoading(btn, true);
+    try {
+      const r = await api('POST', '/processos/update', { id: p.id, ...payload });
+      // Atualiza a copia local
+      const idx = (window._procs || []).findIndex(x => String(x.id) === String(p.id));
+      if (idx >= 0) {
+        window._procs[idx] = { ...window._procs[idx], ...payload, atualizado_em: new Date().toISOString() };
+        renderProcessos(window._procs);
+      }
+      showSuccess(msg, 'Alteracoes salvas.');
+      setTimeout(() => {
+        const atualizado = (window._procs || []).find(x => String(x.id) === String(p.id)) || p;
+        renderDetalhe(atualizado);
+      }, 800);
+    } catch (err) {
+      showError(msg, err.message || 'Falha ao salvar.');
+    } finally {
+      setBtnLoading(btn, false);
+    }
+  });
 }
 
 function fecharModal() {
   $('#modalOverlay').hidden = true;
   document.body.style.overflow = '';
+  _modalProcId = null;
 }
 
 $('#btnFecharModal').addEventListener('click', fecharModal);
