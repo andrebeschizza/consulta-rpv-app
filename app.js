@@ -1,4 +1,4 @@
-// AB SEM CALOTE - app PWA v1.0 (backend: Google Apps Script)
+// AB SEM CALOTE - app PWA v1.1 (backend: Google Apps Script)
 // API_BASE deve ser a URL Web app do GAS, terminada em /exec.
 // Se ainda nao foi configurada, o app mostra erro claro no login.
 
@@ -273,12 +273,24 @@ async function carregarAlertas() {
 }
 
 function renderAlerta(a) {
+  // Alerta de FALHA em consulta de tribunal
+  if (a.tipo === 'consulta_erro') {
+    return `<div class="card depositado">
+      <div class="cliente">⚠ Falha na consulta do tribunal</div>
+      <div class="meta">Processo: <strong>${escapeHtml(a.numero_processo || '-')}</strong></div>
+      <div class="meta">Tribunal: <strong>TRF${escapeHtml(a.trf || '?')}</strong></div>
+      <div class="meta">Erro: ${escapeHtml(a.mensagem || 'sem detalhes')}</div>
+      <div class="meta">Tentativa em: ${fmtDate(a.criado_em)}</div>
+      <span class="status depositado">consulta falhou</span>
+    </div>`;
+  }
+  // Alertas tradicionais (deposito, iminente)
   const cls = a.tipo === 'depositado' ? 'depositado' : 'iminente';
   return `<div class="card ${cls}">
-    <div class="cliente">${a.nome_cliente || 'Cliente'} <small>CPF ***${a.cpf_ultimos4 || '----'}</small></div>
-    <div class="meta"><strong>${a.numero_processo || '-'}</strong></div>
-    <div class="meta">${a.valor_faixa || 'valor a confirmar'}</div>
-    <span class="status ${a.status_canonico || ''}">${a.tipo || 'alerta'}</span></div>`;
+    <div class="cliente">${escapeHtml(a.nome_cliente || 'Cliente')} <small>CPF ***${escapeHtml(a.cpf_ultimos4 || '----')}</small></div>
+    <div class="meta"><strong>${escapeHtml(a.numero_processo || '-')}</strong></div>
+    <div class="meta">${escapeHtml(a.valor_faixa || 'valor a confirmar')}</div>
+    <span class="status ${a.status_canonico || ''}">${escapeHtml(a.tipo || 'alerta')}</span></div>`;
 }
 
 // ============================================================================
@@ -319,6 +331,24 @@ function escapeHtml(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
+// Resumo da ultima consulta em texto curto p/ card + classe CSS
+function ultimaConsultaResumo(uc) {
+  if (!uc) return { texto: 'Nunca consultado', cls: 'sem-consulta', icone: '○' };
+  const data = fmtDate(uc.processado_em || uc.solicitado_em);
+  const trf = uc.trf ? `TRF${uc.trf}` : '';
+  switch ((uc.status || '').toLowerCase()) {
+    case 'erro':
+      return { texto: `Última consulta: ${data} ⚠ Falha ${trf}`, cls: 'consulta-erro', icone: '⚠' };
+    case 'processado':
+    case 'ok':
+    case 'sucesso':
+      return { texto: `Última consulta: ${data} ✓ ${trf}`, cls: 'consulta-ok', icone: '✓' };
+    case 'pendente':
+    default:
+      return { texto: `Consulta agendada: ${data}`, cls: 'consulta-pendente', icone: '⏱' };
+  }
+}
+
 // Bool tolerante: aceita true, "TRUE", "true", "1", 1, "sim"
 function asBool(v) {
   if (v === true || v === 1) return true;
@@ -356,6 +386,7 @@ function renderProcessos(procs) {
       ? `<span class="badge-inadimp" title="Cliente inadimplente">DEBITO ${fmtBRL(r.debito)}</span>`
       : '';
     const isSelected = window._selectedIds.has(String(p.id));
+    const uc = ultimaConsultaResumo(p.ultima_consulta);
     return `<div class="card clickable${r.inadimp ? ' inadimp' : ''}${isSelected ? ' selected' : ''}" data-id="${escapeHtml(p.id)}">
       <input type="checkbox" class="card-check" data-cid="${escapeHtml(p.id)}"${isSelected ? ' checked' : ''} title="Selecionar para consulta em lote" />
       <div class="cliente">${escapeHtml(p.nome_cliente || '-')} ${inadimpBadge}</div>
@@ -364,6 +395,7 @@ function renderProcessos(procs) {
       <div class="meta">TRF${escapeHtml(p.trf)} · ${tipoLabel}${p.tipo !== 'SUCUMBENCIA' && r.pct ? ' · ' + r.pct + '% hon.' : ''}</div>
       <div class="meta">Advogado: ${escapeHtml(p.advogado_responsavel || '-')}</div>
       ${r.valor > 0 ? `<div class="meta">Valor: <strong>${fmtBRL(r.valor)}</strong> · ${p.tipo === 'SUCUMBENCIA' ? 'Sucumbencia' : 'Honorarios'}: <strong>${fmtBRL(r.hon || r.valor)}</strong></div>` : ''}
+      <div class="meta consulta-line ${uc.cls}">${escapeHtml(uc.texto)}</div>
       <span class="status ${p.status_atual || ''}">${(p.status_atual || 'cadastrado').replace(/_/g, ' ')}</span>
       <span class="card-chevron" aria-hidden="true">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg>
@@ -493,7 +525,33 @@ function renderDetalhe(p) {
       </div>`;
   }
 
-  const html = linhasHtml + blocoFin +
+  // Bloco da ultima consulta no tribunal
+  let blocoConsulta = '';
+  const uc = p.ultima_consulta;
+  if (uc) {
+    const stStr = (uc.status || '').toLowerCase();
+    const isErr = stStr === 'erro';
+    const isOk = stStr === 'processado' || stStr === 'ok' || stStr === 'sucesso';
+    const cls = isErr ? 'consulta-box erro' : (isOk ? 'consulta-box ok' : 'consulta-box pendente');
+    const labelStatus = isErr ? '⚠ FALHA' : (isOk ? '✓ OK' : '⏱ AGENDADA');
+    blocoConsulta = `
+      <h4 class="modal-sec-title">Ultima consulta no tribunal</h4>
+      <div class="${cls}">
+        <div class="consulta-row"><span>Status</span><strong>${labelStatus}</strong></div>
+        <div class="consulta-row"><span>Tribunal</span><strong>TRF${escapeHtml(uc.trf || '?')}</strong></div>
+        <div class="consulta-row"><span>Agendada em</span><strong>${fmtDate(uc.solicitado_em)}</strong></div>
+        ${uc.processado_em ? `<div class="consulta-row"><span>Processada em</span><strong>${fmtDate(uc.processado_em)}</strong></div>` : ''}
+        ${uc.resultado ? `<div class="consulta-msg ${isErr ? 'erro' : ''}">${escapeHtml(uc.resultado)}</div>` : ''}
+      </div>`;
+  } else {
+    blocoConsulta = `
+      <h4 class="modal-sec-title">Ultima consulta no tribunal</h4>
+      <div class="consulta-box vazio">
+        <span class="muted-inline">Nunca consultado pelo robo. Use o botao abaixo pra agendar.</span>
+      </div>`;
+  }
+
+  const html = linhasHtml + blocoConsulta + blocoFin +
     `<div class="modal-actions"><button class="primary" id="btnEditar"><span class="btn-text">Editar processo</span></button></div>
      <button class="btn-consulta" id="btnConsultarUnico" type="button">
        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/></svg>
@@ -808,18 +866,26 @@ $('#btnGerarRelatorio').addEventListener('click', async () => {
       return true;
     });
     window._relatorioFiltered = filtered;
-    let sumHon = 0, nHon = 0, sumSuc = 0, nSuc = 0;
+    let sumHon = 0, nHon = 0, sumSuc = 0, nSuc = 0, sumAtraso = 0, nAtraso = 0;
     filtered.forEach(p => {
       const v = parseFloat(p.valor_estimado || 0) || 0;
       const pct = parseFloat(p.percentual_honorarios || 0);
       if (p.tipo === 'SUCUMBENCIA') { sumSuc += v; nSuc++; }
       else { sumHon += v * (pct / 100); nHon++; }
+      // Honorarios em atraso (dividas do cliente)
+      const r = calcResumo(p);
+      if (r.inadimp) {
+        sumAtraso += r.debito;
+        nAtraso++;
+      }
     });
     $('#sumHonorarios').textContent = fmtBRL(sumHon);
     $('#sumHonorariosDetail').textContent = `${nHon} processo${nHon !== 1 ? 's' : ''}`;
     $('#sumSucumbencias').textContent = fmtBRL(sumSuc);
     $('#sumSucumbenciasDetail').textContent = `${nSuc} processo${nSuc !== 1 ? 's' : ''}`;
-    $('#sumTotal').textContent = fmtBRL(sumHon + sumSuc);
+    $('#sumAtraso').textContent = fmtBRL(sumAtraso);
+    $('#sumAtrasoDetail').textContent = `${nAtraso} inadimplente${nAtraso !== 1 ? 's' : ''}`;
+    $('#sumTotal').textContent = fmtBRL(sumHon + sumSuc + sumAtraso);
     $('#sumTotalDetail').textContent = `${nHon + nSuc} processo${(nHon + nSuc) !== 1 ? 's' : ''}`;
     $('#relatorioResultado').hidden = false;
   } catch (e) {
@@ -831,11 +897,17 @@ $('#btnGerarRelatorio').addEventListener('click', async () => {
 
 $('#btnExportarCSV').addEventListener('click', () => {
   const procs = window._relatorioFiltered || [];
-  const headers = ['Data cadastro', 'Tipo', 'TRF', 'Processo', 'RPV', 'Cliente', 'CPF', 'Advogado', 'Valor estimado', 'Percentual honorarios', 'Honorarios estimados', 'Status'];
+  const headers = [
+    'Data cadastro', 'Tipo', 'TRF', 'Processo', 'RPV', 'Cliente', 'CPF', 'Advogado',
+    'Valor estimado', 'Percentual honorarios', 'Honorarios estimados',
+    'Inadimplente', 'Debito parcelas implantacao', 'Debito honorarios iniciais', 'Total em debito',
+    'Total devido escritorio', 'Liquido cliente',
+    'Status processo', 'Ultima consulta status', 'Ultima consulta TRF', 'Ultima consulta data', 'Ultima consulta resultado'
+  ];
+  const num = (n) => (n || 0).toFixed(2).replace('.', ',');
   const rows = procs.map(p => {
-    const v = parseFloat(p.valor_estimado || 0) || 0;
-    const pct = parseFloat(p.percentual_honorarios || 0);
-    const hon = p.tipo === 'SUCUMBENCIA' ? v : v * (pct / 100);
+    const r = calcResumo(p);
+    const uc = p.ultima_consulta || {};
     return [
       fmtDate(p.criado_em),
       p.tipo || '',
@@ -845,10 +917,20 @@ $('#btnExportarCSV').addEventListener('click', () => {
       p.nome_cliente || '',
       p.cpf || ('***' + (p.cpf_ultimos4 || '')),
       p.advogado_responsavel || '',
-      v.toFixed(2).replace('.', ','),
-      p.tipo === 'SUCUMBENCIA' ? '-' : (pct + '%'),
-      hon.toFixed(2).replace('.', ','),
-      p.status_atual || ''
+      num(r.valor),
+      p.tipo === 'SUCUMBENCIA' ? '-' : (r.pct + '%'),
+      num(p.tipo === 'SUCUMBENCIA' ? r.valor : r.hon),
+      r.inadimp ? 'Sim' : 'Nao',
+      num(r.divParc),
+      num(r.divHon),
+      num(r.debito),
+      num(r.devidoEscritorio + (p.tipo === 'SUCUMBENCIA' ? r.valor : 0)),
+      num(r.liquidoCliente),
+      p.status_atual || '',
+      uc.status || 'nunca_consultado',
+      uc.trf ? 'TRF' + uc.trf : '',
+      uc.processado_em || uc.solicitado_em ? fmtDate(uc.processado_em || uc.solicitado_em) : '',
+      uc.resultado || ''
     ];
   });
   const csv = [headers, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(';')).join('\r\n');

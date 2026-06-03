@@ -725,6 +725,8 @@ button.primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
   border-top: 3px solid #0d47a1;
 }
 .summary-card.secondary { border-top-color: #f59e0b; }
+.summary-card.atraso { border-top-color: #dc2626; background: #fef2f2; }
+.summary-card.atraso .summary-value { color: #dc2626; }
 .summary-card.total { border-top-color: #047857; background: #ecfdf5; }
 .summary-label { font-size: 12px; color: #6b7280; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
 .summary-value { font-size: 22px; font-weight: 800; color: #0f172a; }
@@ -736,8 +738,69 @@ button.primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
 @media (max-width: 600px) {
   .report-summary { grid-template-columns: 1fr; }
 }
+.report-summary { grid-template-columns: repeat(4, 1fr); }
+@media (max-width: 900px) {
+  .report-summary { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 480px) {
+  .report-summary { grid-template-columns: 1fr; }
+}
 @media (prefers-color-scheme: dark) {
   .summary-card { background: #1a1f2c; }
   .summary-card.total { background: rgba(4,120,87,0.15); }
+  .summary-card.atraso { background: rgba(220,38,38,0.12); }
+  .summary-card.atraso .summary-value { color: #fca5a5; }
   .summary-value { color: #f9fafb; }
+}
+
+/* ============== LINHA DE ULTIMA CONSULTA NO CARD ============== */
+.consulta-line {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 3px 10px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+}
+.consulta-line.sem-consulta { background: #f1f5f9; color: #64748b; }
+.consulta-line.consulta-pendente { background: #fef3c7; color: #92400e; }
+.consulta-line.consulta-ok { background: #d1fae5; color: #065f46; }
+.consulta-line.consulta-erro { background: #fee2e2; color: #991b1b; }
+
+/* ============== BLOCO DE CONSULTA NO MODAL ============== */
+.consulta-box {
+  padding: 12px 14px;
+  border-radius: 10px;
+  font-size: 13px;
+}
+.consulta-box.ok { background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; }
+.consulta-box.erro { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; }
+.consulta-box.pendente { background: #fffbeb; border: 1px solid #fde68a; color: #92400e; }
+.consulta-box.vazio { background: #f8fafc; border: 1px dashed #cbd5e1; color: #6b7280; text-align: center; padding: 16px; }
+.consulta-row {
+  display: flex; justify-content: space-between;
+  padding: 5px 0;
+  border-bottom: 1px solid rgba(0,0,0,0.05);
+}
+.consulta-row:last-child { border-bottom: none; }
+.consulta-row strong { color: #1f2937; font-weight: 700; }
+.consulta-msg {
+  margin-top: 8px; padding-top: 8px;
+  border-top: 1px dashed currentColor;
+  font-size: 12px; font-style: italic;
+  word-break: break-word;
+}
+.consulta-msg.erro { color: #991b1b; }
+
+@media (prefers-color-scheme: dark) {
+  .consulta-line.sem-consulta { background: #1a1f2c; color: #94a3b8; }
+  .consulta-line.consulta-pendente { background: rgba(245, 158, 11, 0.15); color: #fcd34d; }
+  .consulta-line.consulta-ok { background: rgba(22, 163, 74, 0.15); color: #6ee7b7; }
+  .consulta-line.consulta-erro { background: rgba(220, 38, 38, 0.15); color: #fca5a5; }
+  .consulta-box.ok { background: rgba(22, 163, 74, 0.1); border-color: rgba(22, 163, 74, 0.3); color: #6ee7b7; }
+  .consulta-box.erro { background: rgba(220, 38, 38, 0.1); border-color: rgba(220, 38, 38, 0.3); color: #fca5a5; }
+  .consulta-box.pendente { background: rgba(245, 158, 11, 0.1); border-color: rgba(245, 158, 11, 0.3); color: #fcd34d; }
+  .consulta-box.vazio { background: #0f1419; border-color: #2d3548; color: #94a3b8; }
+  .consulta-row strong { color: #f3f4f6; }
 }
