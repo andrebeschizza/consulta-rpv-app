@@ -1,4 +1,4 @@
-// AB SEM CALOTE - app PWA v1.2 (backend: Google Apps Script)
+// AB SEM CALOTE - app PWA v1.3 (backend: Google Apps Script)
 // API_BASE deve ser a URL Web app do GAS, terminada em /exec.
 // Se ainda nao foi configurada, o app mostra erro claro no login.
 
@@ -447,13 +447,21 @@ $('#bulkConsultar').addEventListener('click', async () => {
   setBtnLoading(btn, true);
   try {
     const r = await api('consulta/trigger', { ids: ids });
-    const msg = r.mensagem || `${r.enfileirados} consulta(s) agendada(s).`;
+    const msg = r.mensagem || `${r.enfileirados} consulta(s) processada(s).`;
     alert(msg + (r.ignorados ? `\n\n${r.ignorados} ignorado(s) (processo nao encontrado).` : ''));
     window._selectedIds.clear();
     atualizarBulkBar();
-    renderProcessos(window._procs || []);
+    // Recarrega processos pra refletir resultados frescos
+    try {
+      const rL = await api('processos/list');
+      const arrAll = Array.isArray(rL.data) ? rL.data : [];
+      window._procs = arrAll.filter(x => (x.id && String(x.id).trim()) || (x.nome_cliente && String(x.nome_cliente).trim()));
+      aplicarFiltros();
+    } catch (e) {
+      renderProcessos(window._procs || []);
+    }
   } catch (err) {
-    alert('Erro: ' + (err.message || 'falha ao agendar consulta'));
+    alert('Erro: ' + (err.message || 'falha ao consultar'));
   } finally {
     setBtnLoading(btn, false);
   }
@@ -570,12 +578,23 @@ function renderDetalhe(p) {
     setBtnLoading(btnC, true);
     try {
       const r = await api('consulta/trigger', { ids: [p.id] });
-      const msg = r.mensagem || 'Consulta agendada.';
-      btnC.querySelector('.btn-text').textContent = '✓ ' + (r.enfileirados === 1 ? 'Consulta agendada' : msg);
+      // Recarrega processos pra puxar resultado fresco e reabre modal
+      try {
+        const rL = await api('processos/list');
+        const arrAll = Array.isArray(rL.data) ? rL.data : [];
+        window._procs = arrAll.filter(x => (x.id && String(x.id).trim()) || (x.nome_cliente && String(x.nome_cliente).trim()));
+        const atualizado = (window._procs || []).find(x => String(x.id) === String(p.id));
+        if (atualizado) {
+          renderDetalhe(atualizado); // re-renderiza modal com nova ultima_consulta
+          renderProcessos(window._procs); // atualiza card no fundo tb
+          return;
+        }
+      } catch (e) { /* fallback abaixo */ }
+      btnC.querySelector('.btn-text').textContent = '✓ ' + (r.mensagem || 'Concluido');
       btnC.disabled = true;
       btnC.querySelector('.spinner').hidden = true;
     } catch (err) {
-      alert('Erro: ' + (err.message || 'falha ao agendar consulta'));
+      alert('Erro: ' + (err.message || 'falha ao consultar'));
       setBtnLoading(btnC, false);
     }
   });

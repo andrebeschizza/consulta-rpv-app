@@ -958,10 +958,15 @@ button.primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
 .consulta-msg {
   margin-top: 8px; padding-top: 8px;
   border-top: 1px dashed currentColor;
-  font-size: 12px; font-style: italic;
+  font-size: 12px;
   word-break: break-word;
+  white-space: pre-wrap;
+  max-height: 220px;
+  overflow-y: auto;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  line-height: 1.5;
 }
-.consulta-msg.erro { color: #991b1b; }
+.consulta-msg.erro { color: #991b1b; font-style: italic; font-family: inherit; }
 
 @media (prefers-color-scheme: dark) {
   .consulta-line.sem-consulta { background: #1a1f2c; color: #94a3b8; }
