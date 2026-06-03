@@ -599,7 +599,7 @@ function renderEdicao(p) {
         <label>
           <span>TRF</span>
           <select name="trf">
-            ${[1,3,4,5].map(n => `<option value="${n}"${parseInt(p.trf,10) === n ? ' selected' : ''}>TRF${n}</option>`).join('')}
+            ${[1,2,3,4,5,6].map(n => `<option value="${n}"${parseInt(p.trf,10) === n ? ' selected' : ''}>TRF${n}</option>`).join('')}
           </select>
         </label>
       </div>
