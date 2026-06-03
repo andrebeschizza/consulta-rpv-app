@@ -9,7 +9,7 @@
   <meta name="apple-mobile-web-app-title" content="AB Calote" />
   <title>AB SEM CALOTE</title>
   <link rel="manifest" href="manifest.json" />
-  <link rel="stylesheet" href="style.css?v=14" />
+  <link rel="stylesheet" href="style.css?v=15" />
 </head>
 <body>
 
@@ -254,9 +254,19 @@
 </main>
 
 <footer class="app-footer">
-  <span>AB SEM CALOTE - v0.9 (GAS)</span>
+  <span>AB SEM CALOTE - v1.0</span>
   <span id="connStatus" class="conn-ok">Conectado</span>
 </footer>
+
+<div id="bulkBar" class="bulk-bar" hidden>
+  <span class="bulk-count"><strong id="bulkCount">0</strong> selecionado(s)</span>
+  <button id="bulkClear" class="bulk-clear">Limpar</button>
+  <button id="bulkConsultar" class="bulk-primary">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/></svg>
+    <span class="btn-text">Consultar tribunal agora</span>
+    <span class="spinner" hidden></span>
+  </button>
+</div>
 
 <div id="modalOverlay" class="modal-overlay" hidden>
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
@@ -270,6 +280,6 @@
   </div>
 </div>
 
-<script src="app.js?v=14"></script>
+<script src="app.js?v=15"></script>
 </body>
 </html>

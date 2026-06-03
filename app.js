@@ -1,4 +1,4 @@
-// AB SEM CALOTE - app PWA v0.9 (backend: Google Apps Script)
+// AB SEM CALOTE - app PWA v1.0 (backend: Google Apps Script)
 // API_BASE deve ser a URL Web app do GAS, terminada em /exec.
 // Se ainda nao foi configurada, o app mostra erro claro no login.
 
@@ -342,6 +342,9 @@ function calcResumo(p) {
   };
 }
 
+// Set global de processos selecionados (bulk consulta)
+window._selectedIds = window._selectedIds || new Set();
+
 function renderProcessos(procs) {
   const list = $('#processosList');
   if (!procs.length) { list.innerHTML = '<div class="state"><p>Nenhum processo encontrado.</p></div>'; return; }
@@ -352,7 +355,9 @@ function renderProcessos(procs) {
     const inadimpBadge = r.inadimp
       ? `<span class="badge-inadimp" title="Cliente inadimplente">DEBITO ${fmtBRL(r.debito)}</span>`
       : '';
-    return `<div class="card clickable${r.inadimp ? ' inadimp' : ''}" data-id="${escapeHtml(p.id)}">
+    const isSelected = window._selectedIds.has(String(p.id));
+    return `<div class="card clickable${r.inadimp ? ' inadimp' : ''}${isSelected ? ' selected' : ''}" data-id="${escapeHtml(p.id)}">
+      <input type="checkbox" class="card-check" data-cid="${escapeHtml(p.id)}"${isSelected ? ' checked' : ''} title="Selecionar para consulta em lote" />
       <div class="cliente">${escapeHtml(p.nome_cliente || '-')} ${inadimpBadge}</div>
       <div class="meta">CPF: <strong>${escapeHtml(cpfDisplay)}</strong></div>
       <div class="meta">Processo: <strong>${escapeHtml(p.numero_processo || '-')}</strong>${p.numero_rpv ? ' · RPV: ' + escapeHtml(p.numero_rpv) : ''}</div>
@@ -366,9 +371,57 @@ function renderProcessos(procs) {
     </div>`;
   }).join('');
   list.querySelectorAll('.card[data-id]').forEach(c => {
-    c.addEventListener('click', () => abrirDetalhe(c.dataset.id));
+    c.addEventListener('click', (e) => {
+      // Click no checkbox nao abre modal
+      if (e.target.closest('.card-check')) return;
+      abrirDetalhe(c.dataset.id);
+    });
   });
+  list.querySelectorAll('.card-check').forEach(chk => {
+    chk.addEventListener('click', (e) => e.stopPropagation());
+    chk.addEventListener('change', (e) => {
+      const id = String(chk.dataset.cid);
+      if (chk.checked) window._selectedIds.add(id);
+      else window._selectedIds.delete(id);
+      chk.closest('.card').classList.toggle('selected', chk.checked);
+      atualizarBulkBar();
+    });
+  });
+  atualizarBulkBar();
 }
+
+function atualizarBulkBar() {
+  const bar = $('#bulkBar');
+  const count = window._selectedIds.size;
+  if (count === 0) { bar.hidden = true; return; }
+  bar.hidden = false;
+  $('#bulkCount').textContent = count;
+}
+
+$('#bulkClear').addEventListener('click', () => {
+  window._selectedIds.clear();
+  document.querySelectorAll('.card-check').forEach(c => { c.checked = false; c.closest('.card').classList.remove('selected'); });
+  atualizarBulkBar();
+});
+
+$('#bulkConsultar').addEventListener('click', async () => {
+  const ids = Array.from(window._selectedIds);
+  if (!ids.length) return;
+  const btn = $('#bulkConsultar');
+  setBtnLoading(btn, true);
+  try {
+    const r = await api('consulta/trigger', { ids: ids });
+    const msg = r.mensagem || `${r.enfileirados} consulta(s) agendada(s).`;
+    alert(msg + (r.ignorados ? `\n\n${r.ignorados} ignorado(s) (processo nao encontrado).` : ''));
+    window._selectedIds.clear();
+    atualizarBulkBar();
+    renderProcessos(window._procs || []);
+  } catch (err) {
+    alert('Erro: ' + (err.message || 'falha ao agendar consulta'));
+  } finally {
+    setBtnLoading(btn, false);
+  }
+});
 
 // ============================================================================
 // Modal de detalhes / edicao do processo
@@ -441,10 +494,29 @@ function renderDetalhe(p) {
   }
 
   const html = linhasHtml + blocoFin +
-    `<div class="modal-actions"><button class="primary" id="btnEditar"><span class="btn-text">Editar processo</span></button></div>`;
+    `<div class="modal-actions"><button class="primary" id="btnEditar"><span class="btn-text">Editar processo</span></button></div>
+     <button class="btn-consulta" id="btnConsultarUnico" type="button">
+       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/></svg>
+       <span class="btn-text">Consultar tribunal agora</span>
+       <span class="spinner" hidden></span>
+     </button>`;
   $('#modalBody').innerHTML = html;
   const btn = $('#btnEditar');
   if (btn) btn.addEventListener('click', () => renderEdicao(p));
+  const btnC = $('#btnConsultarUnico');
+  if (btnC) btnC.addEventListener('click', async () => {
+    setBtnLoading(btnC, true);
+    try {
+      const r = await api('consulta/trigger', { ids: [p.id] });
+      const msg = r.mensagem || 'Consulta agendada.';
+      btnC.querySelector('.btn-text').textContent = '✓ ' + (r.enfileirados === 1 ? 'Consulta agendada' : msg);
+      btnC.disabled = true;
+      btnC.querySelector('.spinner').hidden = true;
+    } catch (err) {
+      alert('Erro: ' + (err.message || 'falha ao agendar consulta'));
+      setBtnLoading(btnC, false);
+    }
+  });
 }
 
 function renderEdicao(p) {

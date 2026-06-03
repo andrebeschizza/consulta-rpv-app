@@ -209,7 +209,17 @@ button.primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
   position: relative;
 }
 .card:active { transform: scale(0.99); }
-.card.clickable { cursor: pointer; padding-right: 36px; }
+.card.clickable { cursor: pointer; padding-right: 36px; padding-left: 48px; }
+.card .card-check {
+  position: absolute;
+  left: 14px; top: 50%;
+  transform: translateY(-50%);
+  width: 22px; height: 22px;
+  cursor: pointer;
+  accent-color: #0d47a1;
+  z-index: 2;
+}
+.card.selected { background: #eff6ff; border-left-color: #0d47a1; }
 .card.clickable:hover { box-shadow: 0 4px 16px rgba(13, 71, 161, 0.12); border-left-color: #1565c0; }
 .card-chevron {
   position: absolute; right: 12px; top: 50%;
@@ -346,6 +356,87 @@ button.primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
 }
 @media (prefers-color-scheme: dark) {
   .aviso-banner { background: rgba(245, 158, 11, 0.12); color: #fcd34d; }
+}
+
+/* ============== BULK ACTION BAR ============== */
+.bulk-bar {
+  position: fixed;
+  bottom: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: white;
+  border-radius: 14px;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 8px 32px rgba(13, 71, 161, 0.25), 0 2px 8px rgba(0,0,0,0.08);
+  z-index: 150;
+  max-width: calc(100vw - 24px);
+  animation: bulkSlideUp 0.22s ease-out;
+}
+@keyframes bulkSlideUp {
+  from { transform: translate(-50%, 20px); opacity: 0; }
+  to { transform: translate(-50%, 0); opacity: 1; }
+}
+.bulk-count { font-size: 13px; color: #374151; white-space: nowrap; }
+.bulk-count strong { color: #0d47a1; font-size: 15px; }
+.bulk-clear {
+  background: transparent;
+  border: 1.5px solid #d1d5db;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #374151;
+}
+.bulk-clear:hover { background: #f9fafb; }
+.bulk-primary {
+  padding: 10px 14px;
+  background: linear-gradient(135deg, #0d47a1 0%, #1565c0 100%);
+  color: white; border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  display: flex; align-items: center; gap: 8px;
+  box-shadow: 0 2px 8px rgba(13, 71, 161, 0.25);
+}
+.bulk-primary:hover { box-shadow: 0 4px 12px rgba(13, 71, 161, 0.35); }
+.bulk-primary:active { transform: scale(0.98); }
+.bulk-primary:disabled { opacity: 0.6; }
+
+@media (max-width: 480px) {
+  .bulk-bar { bottom: 56px; padding: 8px 12px; gap: 8px; }
+  .bulk-primary .btn-text { display: none; }
+  .bulk-primary { padding: 10px; }
+}
+
+/* ============== BOTAO CONSULTA NO MODAL ============== */
+.btn-consulta {
+  margin-top: 10px;
+  padding: 12px;
+  background: white;
+  color: #0d47a1;
+  border: 1.5px solid #0d47a1;
+  border-radius: 10px;
+  font-size: 14px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.btn-consulta:hover { background: #eff6ff; }
+.btn-consulta:active { transform: scale(0.98); }
+.btn-consulta:disabled { opacity: 0.6; cursor: not-allowed; }
+
+@media (prefers-color-scheme: dark) {
+  .card.selected { background: rgba(13, 71, 161, 0.15); }
+  .bulk-bar { background: #1a1f2c; border: 1px solid #2d3548; }
+  .bulk-count { color: #d1d5db; }
+  .bulk-count strong { color: #60a5fa; }
+  .bulk-clear { background: #1a1f2c; color: #d1d5db; border-color: #2d3548; }
+  .bulk-clear:hover { background: #0f1419; }
+  .btn-consulta { background: #1a1f2c; color: #60a5fa; border-color: #60a5fa; }
+  .btn-consulta:hover { background: rgba(96, 165, 250, 0.1); }
 }
 
 /* ============== MODAL DETALHES ============== */
