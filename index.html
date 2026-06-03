@@ -9,7 +9,7 @@
   <meta name="apple-mobile-web-app-title" content="AB Calote" />
   <title>AB SEM CALOTE</title>
   <link rel="manifest" href="manifest.json" />
-  <link rel="stylesheet" href="style.css?v=13" />
+  <link rel="stylesheet" href="style.css?v=14" />
 </head>
 <body>
 
@@ -163,7 +163,9 @@
 
       <label>
         <span>Advogado responsavel <em>*</em></span>
-        <input name="advogado_responsavel" required placeholder="Nome do advogado" id="inpAdv" />
+        <select name="advogado_responsavel" required id="inpAdv">
+          <option value="" disabled selected>Selecione o advogado</option>
+        </select>
       </label>
 
       <fieldset class="inadimp-block">
@@ -268,6 +270,6 @@
   </div>
 </div>
 
-<script src="app.js?v=13"></script>
+<script src="app.js?v=14"></script>
 </body>
 </html>

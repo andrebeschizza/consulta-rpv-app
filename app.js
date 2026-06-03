@@ -1,6 +1,27 @@
 // AB SEM CALOTE - app PWA v0.9 (backend: Google Apps Script)
 // API_BASE deve ser a URL Web app do GAS, terminada em /exec.
 // Se ainda nao foi configurada, o app mostra erro claro no login.
+
+// Lista oficial de advogados do escritorio (dropdown nos forms)
+const ADVOGADOS = [
+  'André Beschizza',
+  'Cláudio Henrique',
+  'Luana Barbosa',
+  'Meiriane Oliveira'
+];
+
+// Gera <option>s. Se currentValue nao esta na lista, adiciona como opcao extra
+// no topo (preserva dado historico) marcada como "(antigo)".
+function optsAdvogados(currentValue) {
+  const cur = (currentValue || '').trim();
+  const isInList = ADVOGADOS.some(a => a.toLowerCase() === cur.toLowerCase());
+  const extras = (cur && !isInList) ? [`<option value="${escapeHtml(cur)}" selected>${escapeHtml(cur)} (antigo)</option>`] : [];
+  const baseOpts = ADVOGADOS.map(a =>
+    `<option value="${escapeHtml(a)}"${cur.toLowerCase() === a.toLowerCase() ? ' selected' : ''}>${escapeHtml(a)}</option>`
+  );
+  const placeholder = !cur ? `<option value="" disabled selected>Selecione o advogado</option>` : '';
+  return [placeholder, ...extras, ...baseOpts].join('');
+}
 const API_BASE = 'https://script.google.com/macros/s/AKfycbwE-j_WyiD8YHQRli_cFjmCRzFFLsveTq2g-LRfUdg0MNw7B8sUr-UMROrkDim888UG/exec';
 const VAPID_PUBLIC = 'BN_LJCRZzyqlBGVeaaiLenhuxLnjwX6t-eU4GEi0wkXJwEfq4OSYiX47aoqjizkbmFKH3XZmXZr8EL-gTW4zEgM';
 const TOKEN_KEY = 'abscalote_token';
@@ -169,11 +190,8 @@ function hideLogin() {
   $('#btnLogout').hidden = false;
   $('#btnRefresh').hidden = false;
   if ('Notification' in window && Notification.permission === 'default') $('#btnNotif').hidden = false;
-  // Auto-preenche advogado com email logado
-  try {
-    const email = localStorage.getItem(EMAIL_KEY) || '';
-    if (email && !$('#inpAdv').value) $('#inpAdv').value = email.split('@')[0].replace(/\./g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-  } catch {}
+  // Popula dropdown de advogados (sem valor inicial — usuario seleciona)
+  $('#inpAdv').innerHTML = optsAdvogados('');
   trocarView('alertas');
 }
 
@@ -477,7 +495,9 @@ function renderEdicao(p) {
       </label>
       <label>
         <span>Advogado responsavel</span>
-        <input name="advogado_responsavel" value="${escapeHtml(p.advogado_responsavel || '')}" />
+        <select name="advogado_responsavel" required>
+          ${optsAdvogados(p.advogado_responsavel || '')}
+        </select>
       </label>
       <label>
         <span>Status atual</span>
