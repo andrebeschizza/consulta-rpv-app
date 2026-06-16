@@ -341,9 +341,13 @@ function urlPortalTribunal(p) {
   const trf = parseInt(p.trf, 10);
   const cnj = String(p.numero_processo || '').replace(/\D/g, '');
   switch (trf) {
-    case 1:
-      // TRF1 — busca pelo numero originario (1a instancia). Usuario cola o numero.
-      return `https://processual.trf1.jus.br/consultaProcessual/numeroProcessoOriginario.php?secao=TRF1`;
+    case 1: {
+      // TRF1 — busca por CPF do cliente (mais robusto que numero do processo).
+      // Se a busca por CPF retornar varios processos, o usuario cruza com o
+      // numero_processo cadastrado no card pra achar o certo.
+      const cpfTrf1 = String(p.cpf || '').replace(/\D/g, '');
+      return `https://processual.trf1.jus.br/consultaProcessual/cpfCnpjParte.php?secao=TRF1${cpfTrf1 ? '&filtroCPF=' + cpfTrf1 : ''}`;
+    }
     case 5:
       // TRF5 — Joomla legado, aceita busca direta por numero
       return `https://cp.trf5.jus.br/cp/cp.do?tipo=xmlproc&filtro=${encodeURIComponent(p.numero_processo || '')}`;
@@ -589,11 +593,15 @@ function renderDetalhe(p) {
   }
 
   const urlPortal = urlPortalTribunal(p);
+  // TRF1 busca por CPF — mostra dica visual pra cruzar com o numero do processo
+  const dicaCross = (parseInt(p.trf, 10) === 1 && p.numero_processo)
+    ? `<div class="dica-cross">⚡ Busca por CPF abre lista. Procura o processo <code>${escapeHtml(p.numero_processo)}</code> na tabela que abrir.</div>`
+    : '';
   const btnPortal = urlPortal
     ? `<a class="btn-consulta secondary" href="${urlPortal}" target="_blank" rel="noopener">
          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14L21 3"/></svg>
          <span class="btn-text">Abrir no portal TRF${p.trf}</span>
-       </a>`
+       </a>${dicaCross}`
     : '';
 
   const html = linhasHtml + blocoConsulta + blocoFin +
