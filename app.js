@@ -342,8 +342,8 @@ function urlPortalTribunal(p) {
   const cnj = String(p.numero_processo || '').replace(/\D/g, '');
   switch (trf) {
     case 1:
-      // Sistema antigo do TRF1 — abre direto a busca. Usuario cola o numero se nao preencher.
-      return `https://processual.trf1.jus.br/consultaProcessual/numeroProcesso.php?secao=TRF1&enviar=ok&proc=${cnj}`;
+      // TRF1 — busca pelo numero originario (1a instancia). Usuario cola o numero.
+      return `https://processual.trf1.jus.br/consultaProcessual/numeroProcessoOriginario.php?secao=TRF1`;
     case 5:
       // TRF5 — Joomla legado, aceita busca direta por numero
       return `https://cp.trf5.jus.br/cp/cp.do?tipo=xmlproc&filtro=${encodeURIComponent(p.numero_processo || '')}`;
