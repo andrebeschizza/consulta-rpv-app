@@ -45,6 +45,33 @@ function formatCPF(v) {
 }
 function unmaskCPF(v) { return (v || '').replace(/\D/g, ''); }
 
+// Formata CPF pra display garantindo 11 digitos com leading zero
+function formatCPFDisplay(cpf) {
+  let d = String(cpf || '').replace(/\D/g, '');
+  if (!d) return '';
+  if (d.length === 10) d = '0' + d;
+  if (d.length !== 11) return d; // retorna cru se nao for 11
+  return d.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+}
+
+// Valida CPF brasileiro pelos digitos verificadores
+function validarCPF(cpf) {
+  cpf = String(cpf || '').replace(/\D/g, '');
+  if (cpf.length !== 11) return false;
+  if (/^(\d)\1+$/.test(cpf)) return false; // todos digitos iguais (000.000.000-00, 111.111.111-11, etc)
+  let soma = 0;
+  for (let i = 0; i < 9; i++) soma += parseInt(cpf[i]) * (10 - i);
+  let dig1 = 11 - (soma % 11);
+  if (dig1 >= 10) dig1 = 0;
+  if (dig1 !== parseInt(cpf[9])) return false;
+  soma = 0;
+  for (let i = 0; i < 10; i++) soma += parseInt(cpf[i]) * (11 - i);
+  let dig2 = 11 - (soma % 11);
+  if (dig2 >= 10) dig2 = 0;
+  if (dig2 !== parseInt(cpf[10])) return false;
+  return true;
+}
+
 function formatValor(v) {
   // Aceita "1234,56" ou "123456" e formata como R$ 1.234,56
   const digits = (v || '').replace(/\D/g, '');
@@ -414,7 +441,7 @@ function renderProcessos(procs) {
   list.innerHTML = procs.map(p => {
     const r = calcResumo(p);
     const tipoLabel = { RPV: 'RPV', PRECATORIO: 'Precatorio', SUCUMBENCIA: 'Sucumbencia' }[p.tipo] || p.tipo;
-    const cpfDisplay = p.cpf || ('***' + (p.cpf_ultimos4 || '----'));
+    const cpfDisplay = formatCPFDisplay(p.cpf) || ('***' + (p.cpf_ultimos4 || '----'));
     const inadimpBadge = r.inadimp
       ? `<span class="badge-inadimp" title="Cliente inadimplente">DEBITO ${fmtBRL(r.debito)}</span>`
       : '';
@@ -1026,8 +1053,12 @@ $('#novoForm').addEventListener('submit', async (e) => {
   msg.hidden = true;
   const fd = new FormData(e.target);
   const cpfClean = unmaskCPF(fd.get('cpf'));
-  if (!/^\d{11}$/.test(cpfClean)) {
-    showError(msg, 'CPF deve ter 11 digitos.');
+  if (cpfClean.length !== 11) {
+    showError(msg, 'CPF deve ter 11 dígitos (formato 000.000.000-00).');
+    return;
+  }
+  if (!validarCPF(cpfClean)) {
+    showError(msg, 'CPF inválido — confira os dígitos verificadores.');
     return;
   }
   const valor = unmaskValor(fd.get('valor_estimado'));
@@ -1143,7 +1174,7 @@ $('#btnExportarCSV').addEventListener('click', () => {
       p.numero_processo || '',
       p.numero_rpv || '',
       p.nome_cliente || '',
-      p.cpf || ('***' + (p.cpf_ultimos4 || '')),
+      formatCPFDisplay(p.cpf) || ('***' + (p.cpf_ultimos4 || '')),
       p.advogado_responsavel || '',
       num(r.valor),
       p.tipo === 'SUCUMBENCIA' ? '-' : (r.pct + '%'),
