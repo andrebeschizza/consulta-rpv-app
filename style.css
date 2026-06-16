@@ -597,6 +597,13 @@ button.primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
 .btn-consulta:hover { background: #eff6ff; }
 .btn-consulta:active { transform: scale(0.98); }
 .btn-consulta:disabled { opacity: 0.6; cursor: not-allowed; }
+.btn-consulta.secondary {
+  background: #f8fafc;
+  color: #475569;
+  border-color: #cbd5e1;
+  text-decoration: none;
+}
+.btn-consulta.secondary:hover { background: #f1f5f9; border-color: #94a3b8; color: #0f172a; }
 
 @media (prefers-color-scheme: dark) {
   .card.selected { background: rgba(13, 71, 161, 0.15); }

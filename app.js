@@ -335,6 +335,31 @@ function escapeHtml(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
+// Retorna URL do portal do TRF correspondente, com numero do processo quando aplicavel.
+// Cada tribunal tem URL/sistema diferente — esse mapa cresce conforme validamos um a um.
+function urlPortalTribunal(p) {
+  const trf = parseInt(p.trf, 10);
+  const cnj = String(p.numero_processo || '').replace(/\D/g, '');
+  switch (trf) {
+    case 1:
+      // Sistema antigo do TRF1 — abre direto a busca. Usuario cola o numero se nao preencher.
+      return `https://processual.trf1.jus.br/consultaProcessual/numeroProcesso.php?secao=TRF1&enviar=ok&proc=${cnj}`;
+    case 5:
+      // TRF5 — Joomla legado, aceita busca direta por numero
+      return `https://cp.trf5.jus.br/cp/cp.do?tipo=xmlproc&filtro=${encodeURIComponent(p.numero_processo || '')}`;
+    case 2:
+      return `https://eproc.jfrj.jus.br/eproc/externo_controlador.php?acao=processo_consulta_publica`;
+    case 3:
+      return `https://pje1g.trf3.jus.br/pje/ConsultaPublica/listView.seam`;
+    case 4:
+      return `http://www2.trf4.jus.br/trf4/controlador.php?acao=consulta_processual_pesquisa&selForma=NU&txtValor=${cnj}&selOrigem=TRF`;
+    case 6:
+      return `https://pje2g.trf6.jus.br/pje/ConsultaPublica/listView.seam`;
+    default:
+      return null;
+  }
+}
+
 // Resumo da ultima consulta em texto curto p/ card + classe CSS
 function ultimaConsultaResumo(uc) {
   if (!uc) return { texto: 'Nunca consultado', cls: 'sem-consulta', icone: '○' };
@@ -563,13 +588,22 @@ function renderDetalhe(p) {
       </div>`;
   }
 
+  const urlPortal = urlPortalTribunal(p);
+  const btnPortal = urlPortal
+    ? `<a class="btn-consulta secondary" href="${urlPortal}" target="_blank" rel="noopener">
+         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14L21 3"/></svg>
+         <span class="btn-text">Abrir no portal TRF${p.trf}</span>
+       </a>`
+    : '';
+
   const html = linhasHtml + blocoConsulta + blocoFin +
     `<div class="modal-actions"><button class="primary" id="btnEditar"><span class="btn-text">Editar processo</span></button></div>
      <button class="btn-consulta" id="btnConsultarUnico" type="button">
        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/></svg>
        <span class="btn-text">Consultar tribunal agora</span>
        <span class="spinner" hidden></span>
-     </button>`;
+     </button>
+     ${btnPortal}`;
   $('#modalBody').innerHTML = html;
   const btn = $('#btnEditar');
   if (btn) btn.addEventListener('click', () => renderEdicao(p));
